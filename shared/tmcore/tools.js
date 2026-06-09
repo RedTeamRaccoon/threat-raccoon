@@ -78,7 +78,7 @@ export const toolDefinitions = [
     },
     {
         name: 'connectFlow',
-        description: 'Connect two existing elements with a directional data flow (edge). Call this AFTER both the source and target elements exist. Represents data moving from source to target; create two flows for bidirectional communication.',
+        description: 'Connect two existing elements with a directional data flow (edge). Call this AFTER both the source and target elements exist. Represents data moving from source to target; create two flows for bidirectional communication. Give the flow a short, descriptive name of the data it carries (e.g. "OAuth login redirect") — never leave it as the generic "Data Flow". Set protocol/isEncrypted/isPublicNetwork when known, as they drive threat severity.',
         input_schema: {
             type: 'object',
             additionalProperties: false,
@@ -121,7 +121,7 @@ export const toolDefinitions = [
     },
     {
         name: 'addThreat',
-        description: 'Attach a threat to a specific element or flow. Call this once per identified threat after the target element exists. Omitted fields are filled from the diagram methodology defaults (e.g. STRIDE category by element type). Increments the model threat counter and marks the element as having open threats.',
+        description: 'Attach a threat to a specific element or flow. Be thorough: cover the STRIDE categories that apply to the target type (actors: spoofing/repudiation; processes: all six; stores: tampering/repudiation/info-disclosure/DoS; flows: tampering/info-disclosure/DoS) rather than one threat per element. Write a description that names the element and why it is at risk, set a justified severity, and give a concrete actionable mitigation (not "use encryption"). Omitted fields fall back to the methodology defaults. Increments the threat counter and marks the element as having open threats.',
         input_schema: {
             type: 'object',
             additionalProperties: false,
