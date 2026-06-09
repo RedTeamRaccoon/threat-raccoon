@@ -1,11 +1,15 @@
 'use strict';
 
-import { app, protocol, BrowserWindow, Menu, ipcMain } from 'electron';
+import { app, protocol, BrowserWindow, Menu, ipcMain, safeStorage } from 'electron';
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib';
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer';
 import menu from './menu.js';
 import logger from './logger.js';
+import { createKeyStore } from './keyStore.js';
+import { createLlmRelay } from './llm.js';
 import { electronURL, isDevelopment, isTest, isMacOS, isWin } from './utils.js';
+
+const fs = require('fs');
 
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
@@ -30,6 +34,56 @@ export function registerDesktop (deps) {
     const { electronURL: url, isDevelopment: isDev, isTest: testMode, isMacOS: macos, isWin: win } = utils;
 
     let runApp = true;
+    let activeWindow = null;
+    let streamController = null;
+
+    const sendStreamEvent = (evt) => {
+        if (activeWindow && (!activeWindow.isDestroyed || !activeWindow.isDestroyed())) {
+            activeWindow.webContents.send('llm-stream-event', evt);
+        }
+    };
+
+    // Wire the BYO-key LLM relay + settings storage for desktop mode. Guarded so a
+    // missing safeStorage/userData (e.g. under unit tests) never blocks app startup.
+    function registerLlmIpc () {
+        if (typeof ipcMainApi.handle !== 'function') {
+            return;
+        }
+        let keyStore;
+        try {
+            keyStore = createKeyStore({ app, safeStorage, fs, path: pathModule });
+        } catch (e) {
+            loggerApi.log.error('LLM key store unavailable: ' + e.toString());
+            return;
+        }
+        const relay = createLlmRelay({ getKey: (provider) => keyStore.getKey(provider) });
+
+        ipcMainApi.handle('llm-get-settings', () => keyStore.getSettings());
+        ipcMainApi.handle('llm-set-settings', (_event, settings) => {
+            keyStore.setSettings(settings);
+            return true;
+        });
+        ipcMainApi.handle('llm-get-providers', () => keyStore.configuredProviders());
+        ipcMainApi.handle('llm-set-key', (_event, provider, key) => {
+            keyStore.setKey(provider, key);
+            return true;
+        });
+        ipcMainApi.handle('llm-has-key', (_event, provider) => keyStore.hasKey(provider));
+
+        ipcMainApi.on('llm-stream-start', async (_event, request) => {
+            if (streamController) {
+                streamController.abort();
+            }
+            streamController = new AbortController();
+            await relay.streamCompletion(request, sendStreamEvent, streamController.signal);
+        });
+        ipcMainApi.on('llm-stream-abort', () => {
+            if (streamController) {
+                streamController.abort();
+            }
+            streamController = null;
+        });
+    }
 
     async function createWindow () {
         const mainWindow = new BrowserWindowCtor({
@@ -43,6 +97,8 @@ export function registerDesktop (deps) {
                 preload: pathModule.join(__static, 'preload.js')
             }
         });
+
+        activeWindow = mainWindow;
 
         // Event listeners on the window
         mainWindow.webContents.on('did-finish-load', () => {
@@ -123,6 +179,8 @@ export function registerDesktop (deps) {
         ipcMainApi.on('model-print', handleModelPrint);
         ipcMainApi.on('model-save', handleModelSave);
         ipcMainApi.on('update-menu', handleUpdateMenu);
+
+        registerLlmIpc();
 
         createWindow();
 

@@ -1,5 +1,6 @@
 import { createStore } from 'vuex';
 
+import assistant from './modules/assistant.js';
 import auth from './modules/auth.js';
 import branch from './modules/branch.js';
 import cell from './modules/cell.js';
@@ -25,6 +26,7 @@ const get = () => {
                 packageBuildState: buildState
             },
             modules: {
+                assistant,
                 auth,
                 branch,
                 cell,

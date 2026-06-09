@@ -13,6 +13,9 @@ module.exports = async () => {
             '^@vue/test-utils$': '<rootDir>/src/plugins/vue-test-utils-compat.js',
             '^vue-i18n$': '<rootDir>/src/plugins/vue-i18n-test-compat.js',
             '^@/(.*)$': '<rootDir>/src/$1',
+            // Only the PURE @tmcore subpaths (tools.js/taxonomy.js) are browser/jest-safe;
+            // the barrel + validate.js pull node:module, so intentionally no bare mapper.
+            '^@tmcore/(.*)$': '<rootDir>/../shared/tmcore/$1',
             '^lodash-es$': 'lodash'
         },
         collectCoverage: true,

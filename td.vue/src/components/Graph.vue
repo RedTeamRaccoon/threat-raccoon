@@ -4,12 +4,23 @@
             <b-col md="2">
                 <div ref="stencil_container"></div>
             </b-col>
-            <b-col md="10">
+            <b-col :md="panelOpen ? 7 : 10">
                 <b-row>
                     <b-col>
                         <h3 class="td-graph-title">{{ diagram.title }}</h3>
                     </b-col>
                     <b-col align="right">
+                        <b-btn
+                            v-if="aiEnabled"
+                            :pressed="panelOpen"
+                            variant="secondary"
+                            size="sm"
+                            class="td-assistant-toggle mr-2"
+                            :title="$t('assistant.toggle')"
+                            @click="togglePanel"
+                        >
+                            <font-awesome-icon icon="robot" />
+                        </b-btn>
                         <td-graph-buttons :graph="graph" @saved="saved" @closed="closed" />
                     </b-col>
                 </b-row>
@@ -23,6 +34,9 @@
                     </b-col>
                 </b-row>
             </b-col>
+            <b-col v-if="panelOpen" md="3">
+                <td-assistant-panel :graph="graph" @close="togglePanel" />
+            </b-col>
         </b-row>
         <td-graph-meta @threatSelected="threatSelected" @threatSuggest="threatSuggest" />
 
@@ -30,6 +44,7 @@
             <td-keyboard-shortcuts />
             <td-threat-edit-dialog ref="threatEditDialog" />
             <td-threat-suggest-dialog ref="threatSuggestDialog" />
+            <td-assistant-settings v-if="aiEnabled" />
         </div>
     </div>
 </template>
@@ -43,11 +58,14 @@
 <script>
 import { mapState } from 'vuex';
 
+import TdAssistantPanel from '@/components/Assistant/AssistantPanel.vue';
+import TdAssistantSettings from '@/components/Assistant/AssistantSettings.vue';
 import TdGraphButtons from '@/components/GraphButtons.vue';
 import TdGraphMeta from '@/components/GraphMeta.vue';
 import TdKeyboardShortcuts from '@/components/KeyboardShortcuts.vue';
 import TdThreatEditDialog from '@/components/ThreatEditDialog.vue';
 import TdThreatSuggestDialog from './ThreatSuggestDialog.vue';
+import assistantActions from '@/store/actions/assistant.js';
 
 import { DESKTOP_DIAGRAM_SAVE_REQUEST_EVENT } from '@/service/desktop/save.js';
 import { getProviderType } from '@/service/provider/providers.js';
@@ -60,16 +78,30 @@ import tmActions from '@/store/actions/threatmodel.js';
 export default {
     name: 'TdGraph',
     components: {
+        TdAssistantPanel,
+        TdAssistantSettings,
         TdGraphButtons,
         TdGraphMeta,
         TdKeyboardShortcuts,
         TdThreatEditDialog,
         TdThreatSuggestDialog
     },
-    computed: mapState({
-        diagram: (state) => state.threatmodel.selectedDiagram,
-        providerType: (state) => getProviderType(state.provider.selected)
-    }),
+    computed: {
+        ...mapState({
+            diagram: (state) => state.threatmodel.selectedDiagram,
+            providerType: (state) => getProviderType(state.provider.selected),
+            panelOpen: (state) => !!(state.assistant && state.assistant.panelOpen)
+        }),
+        aiEnabled() {
+            // desktop is BYO-key (no backend /api/config), so the assistant is always
+            // available there; server mode gates on the llmEnabled config flag.
+            if (this.providerType === providerTypes.desktop) {
+                return true;
+            }
+            const cfg = (this.$store.state.config && this.$store.state.config.config) || {};
+            return !!cfg.llmEnabled;
+        }
+    },
     data() {
         return {
             graph: null,
@@ -99,6 +131,9 @@ export default {
         },
         threatSuggest(type){
             this.$refs.threatSuggestDialog.showModal(type);
+        },
+        togglePanel() {
+            this.$store.dispatch(assistantActions.togglePanel);
         },
         handleDesktopSaveRequest() {
             if (!this.graph) {

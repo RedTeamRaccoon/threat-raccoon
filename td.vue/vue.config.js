@@ -163,6 +163,11 @@ module.exports = {
     },
     configureWebpack: {
         devtool: 'source-map',
+        resolve: {
+            alias: {
+                '@tmcore': path.resolve(__dirname, '../shared/tmcore')
+            }
+        },
         plugins: [
             new CycloneDxWebpackPlugin(
                 {
