@@ -70,7 +70,9 @@ This fork adds a built-in AI assistant and native [Model Context Protocol](https
 You can chat with an AI agent, share application design documents, and collaboratively build a complete threat
 model that is drawn **live on the diagram canvas** — actors, processes, stores, data flows, trust boundaries and
 STRIDE threats. The same threat-model operations are exposed as an MCP server, so external MCP clients
-(such as Claude Desktop, Claude Code or Cursor) can drive Threat Dragon directly.
+(Claude Code, OpenCode, Codex, Cursor, Claude Desktop, …) can drive Threat Dragon directly — **and in that mode
+Threat Dragon needs no AI key of its own; the MCP client brings its own model** (handy if your organisation only
+allows a specific provider such as GitHub Copilot).
 
 It runs in two modes:
 
@@ -78,8 +80,9 @@ It runs in two modes:
   the existing login; an authenticated HTTP MCP endpoint is exposed at `/api/mcp`.
 - **Desktop mode** — bring your own API key, stored encrypted locally, with a local stdio MCP server.
 
-Supported providers are Anthropic, OpenAI, GitHub Copilot and Claude Code (OAuth).
-See the [AI assistant guide](docs/usage/ai-assistant.md) for usage and the
+In-app assistant providers: Anthropic, OpenAI, GitHub Copilot and Claude Code (OAuth).
+See the [AI assistant guide](docs/usage/ai-assistant.md) — including step-by-step **Claude Code / OpenCode / Codex**
+MCP walkthroughs — and the
 [environment configuration](docs/configure/configure.md#ai-assistant-and-mcp-environment) for setup.
 
 ### Version 1.x maintenance mode
