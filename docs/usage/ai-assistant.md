@@ -89,12 +89,12 @@ Claude Desktop, …).
 
 ### Build the stdio server (one-time)
 
-The stdio entry is Babel/ESM source, so build it once to a plain-Node command:
+The stdio entry is Babel/ESM source, so build it once to a plain-Node command. Run these from the **repo root**
+so `npm install` also installs `shared/tmcore` — the MCP server loads it as native ESM at runtime:
 
 ```bash
-cd td.server
 npm install
-npm run build
+npm run build:server
 ```
 
 The runnable entry is then `node td.server/dist/mcp/stdioEntry.js <model.json>`. It reads and writes a single
