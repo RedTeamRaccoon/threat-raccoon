@@ -13,19 +13,19 @@
 // builtins / import.meta), so it is browser- and jest-safe; the @tmcore barrel and
 // validate.js are NOT (they pull node:module) and must never enter the browser bundle.
 import { toolDefinitions } from '@tmcore/tools.js';
+// guidance.js is pure strings (no node builtins / import.meta), so it is browser-
+// and jest-safe like tools.js — the single source for the modeling guidance shared
+// with the MCP server.
+import { MODELING_GUIDANCE } from '@tmcore/guidance.js';
 
 import proxyClient from '@/service/assistant/proxyClient.js';
 
 const MAX_ITERATIONS = 25;
 
 const SYSTEM_PROMPT = [
-    'You are a threat-modeling assistant embedded in OWASP Threat Dragon.',
-    'You collaboratively build a threat model on the live diagram canvas by calling the provided tools.',
-    'Work incrementally: add actors, processes and stores; connect them with data flows; group them with trust boundaries; then enumerate threats (STRIDE/LINDDUN/etc. per the diagram type).',
-    'Always position elements so the diagram is readable and avoid overlapping shapes.',
-    'Prefer calling tools to make changes rather than only describing them. After a batch of changes, call validateModel to check the model is well-formed.',
-    'When the user shares design documents, ground the model in their described components, data stores, and trust boundaries.'
-].join(' ');
+    'You are a threat-modeling assistant embedded in OWASP Threat Dragon. You build the model on the live diagram canvas by calling the provided tools, and the user watches it appear in real time. Prefer calling tools to make changes rather than only describing them.',
+    MODELING_GUIDANCE
+].join('\n\n');
 
 const stripDataUrl = (data) => (typeof data === 'string' && data.includes(',') ? data.slice(data.indexOf(',') + 1) : data);
 

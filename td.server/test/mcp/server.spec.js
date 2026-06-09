@@ -1,7 +1,13 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
 
-import { makeCallToolHandler, makeListToolsHandler } from '../../src/mcp/server.js';
+import {
+    makeCallToolHandler,
+    makeListToolsHandler,
+    makeListPromptsHandler,
+    makeGetPromptHandler,
+    PROMPT_DEFS
+} from '../../src/mcp/server.js';
 
 describe('mcp/server.js', () => {
     describe('makeListToolsHandler', () => {
@@ -65,6 +71,41 @@ describe('mcp/server.js', () => {
             expect(result.isError).to.be.true;
             expect(result.content[0].text).to.equal('invalid model');
             expect(modelStore.saveModel.called).to.be.false;
+        });
+    });
+
+    describe('prompt handlers', () => {
+        it('lists the build_threat_model and review_coverage prompts', () => {
+            const result = makeListPromptsHandler()();
+            const names = result.prompts.map((p) => p.name);
+            expect(names).to.include('build_threat_model');
+            expect(names).to.include('review_coverage');
+            expect(PROMPT_DEFS.find((p) => p.name === 'build_threat_model').arguments[0].name)
+                .to.equal('system_description');
+        });
+
+        it('builds the build_threat_model prompt from the system_description', () => {
+            const tmcore = {
+                buildModelTask: sinon.stub().returns('BUILD TASK'),
+                reviewCoverageTask: sinon.stub().returns('REVIEW TASK')
+            };
+            const result = makeGetPromptHandler(tmcore)({
+                params: { name: 'build_threat_model', arguments: { system_description: 'My app' } }
+            });
+            expect(tmcore.buildModelTask.calledOnceWith('My app')).to.be.true;
+            expect(result.messages[0]).to.deep.equal({ role: 'user', content: { type: 'text', text: 'BUILD TASK' } });
+        });
+
+        it('builds the review_coverage prompt', () => {
+            const tmcore = { buildModelTask: sinon.stub(), reviewCoverageTask: sinon.stub().returns('REVIEW TASK') };
+            const result = makeGetPromptHandler(tmcore)({ params: { name: 'review_coverage' } });
+            expect(tmcore.reviewCoverageTask.calledOnce).to.be.true;
+            expect(result.messages[0].content.text).to.equal('REVIEW TASK');
+        });
+
+        it('throws for an unknown prompt', () => {
+            const handler = makeGetPromptHandler({});
+            expect(() => handler({ params: { name: 'nope' } })).to.throw(/Unknown prompt/);
         });
     });
 });
