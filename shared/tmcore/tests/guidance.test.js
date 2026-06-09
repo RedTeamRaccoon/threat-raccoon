@@ -5,7 +5,7 @@ import { MODELING_GUIDANCE, buildModelTask, reviewCoverageTask } from '../guidan
 
 test('MODELING_GUIDANCE teaches readable layout and thorough STRIDE', () => {
     assert.ok(MODELING_GUIDANCE.length > 400);
-    for (const kw of ['Readable layout', 'STRIDE', 'trust boundary', 'mitigation', 'Spoofing', 'left-to-right', 'Never leave a flow named']) {
+    for (const kw of ['Readable layout', 'STRIDE', 'trust boundary', 'mitigation', 'Spoofing', 'left-to-right', 'Never leave a flow named', 'Use MULTIPLE diagrams', 'subsystem', 'spider-web']) {
         assert.ok(MODELING_GUIDANCE.includes(kw), `guidance should mention "${kw}"`);
     }
 });

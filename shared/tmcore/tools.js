@@ -36,7 +36,7 @@ const pointSchema = {
 export const toolDefinitions = [
     {
         name: 'createDiagram',
-        description: 'Create a new data-flow diagram in the threat model. Call this FIRST, before adding any elements, when the model has no suitable diagram for the methodology you intend to use. Returns the new diagramId that all subsequent element/flow/threat calls must reference.',
+        description: 'Create a new data-flow diagram in the threat model. Call this FIRST, before adding any elements. A model can and SHOULD hold several diagrams: create one focused diagram per distinct subsystem or trust domain (e.g. device onboarding, live streaming, media storage, account & auth, backend services) rather than one giant diagram of the whole platform. Returns the new diagramId that all subsequent element/flow/threat calls must reference.',
         input_schema: {
             type: 'object',
             additionalProperties: false,
