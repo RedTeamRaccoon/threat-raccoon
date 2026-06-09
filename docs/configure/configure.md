@@ -214,6 +214,34 @@ for example `http://localhost:3000/`, but not in 'production' mode.
 __Note__ : the JWT refresh signing key should be different from the JWT signing key as they are different tokens.
 A JWT is used as the refresh token because it is tamper resistant and provides user context.
 
+### AI assistant and MCP environment
+
+These configure the optional built-in [AI assistant]({{ '/usage/ai-assistant.html' | relative_url }})
+(server mode) and the native MCP server. Only enablement flags and provider metadata are exposed through
+`/api/config`; provider keys and tokens are never returned to the browser. Any secret may instead be supplied
+from a file using the `_FILE` suffix (e.g. `LLM_ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic`)
+for Docker / Kubernetes secrets.
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `LLM_ENABLED` | Enables the AI assistant proxy and the in-app chat panel | `false` |
+| `LLM_PROVIDER` | Default provider: `anthropic` / `openai` / `copilot` / `claudecode` | |
+| `LLM_ANTHROPIC_API_KEY` | Anthropic API key | |
+| `LLM_ANTHROPIC_MODEL` | Anthropic model id | `claude-opus-4-8` |
+| `LLM_OPENAI_API_KEY` | OpenAI API key | |
+| `LLM_OPENAI_MODEL` | OpenAI model id | `gpt-4o` |
+| `LLM_COPILOT_API_KEY` | GitHub Copilot key / token | |
+| `LLM_COPILOT_MODEL` | Copilot model id | `gpt-4o` |
+| `LLM_CLAUDECODE_OAUTH_TOKEN` | Claude Code OAuth bearer token | |
+| `LLM_CLAUDECODE_MODEL` | Claude Code model id | `claude-opus-4-8` |
+| `LLM_ALLOW_USER_KEY` | Allow a signed-in user to override the shared key with their own via the `X-LLM-User-Key` header | `false` |
+| `MCP_HTTP_ENABLED` | Enables the authenticated HTTP MCP endpoint (`POST`/`GET` `/api/mcp`) | `false` |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated allow-list of browser `Origin`s for the MCP endpoint (DNS-rebinding protection). Empty allows non-browser MCP clients; authentication is always required | |
+| `MCP_ALLOWED_HOSTS` | Comma-separated allow-list of `Host` headers for the MCP endpoint | |
+
+Only providers that have a configured key appear in the assistant's provider selector.
+The assistant and MCP routes are protected by the same login as the rest of the API.
+
 ### Remote repository environments
 
 Refer to the step by step guide pages for setting the environment variables specific for these technologies:
