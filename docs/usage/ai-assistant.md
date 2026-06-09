@@ -153,6 +153,34 @@ args = ["/abs/td/td.server/dist/mcp/stdioEntry.js", "/abs/model.json"]
 
 or via the CLI: `codex mcp add threat-dragon -- node /abs/td/td.server/dist/mcp/stdioEntry.js /abs/model.json`.
 
+#### GitHub Copilot CLI
+
+The standalone [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/overview)
+(the agentic `copilot` command — not the older `gh copilot` suggest/explain extension) supports MCP and uses your
+Copilot subscription as the model, so nothing else needs an API key. Add the server in `~/.copilot/mcp-config.json`
+(on Windows, `%USERPROFILE%\.copilot\mcp-config.json`; relocatable via the `COPILOT_HOME` env var):
+
+```json
+{
+  "mcpServers": {
+    "threat-dragon": {
+      "type": "local",
+      "command": "node",
+      "args": ["/abs/td/td.server/dist/mcp/stdioEntry.js", "/abs/model.json"],
+      "env": {},
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+Or add it interactively: run `copilot`, enter `/mcp add`, set the server type to Local/STDIO, the command to
+`node /abs/td/td.server/dist/mcp/stdioEntry.js /abs/model.json`, tools to `*`, then press <kbd>Ctrl</kbd>+<kbd>S</kbd>
+(manage with `/mcp show`, `/mcp edit`, `/mcp delete`). On Windows use an absolute path with escaped backslashes
+(`\\`) or forward slashes. To minimise token use on a limited subscription, replace `"tools": ["*"]` with the
+explicit tool names so only the Threat Dragon schemas load: `createDiagram`, `addElement`, `connectFlow`,
+`addBoundary`, `addThreat`, `updateElement`, `removeElement`, `listThreats`, `validateModel`, `getModelSummary`.
+
 Once connected, ask the client to build the model — for example *"Read this design document and add the actors,
 processes, data stores, data flows and STRIDE threats to the threat model."* It drives the ten tools
 (`createDiagram`, `addElement`, `connectFlow`, `addBoundary`, `addThreat`, `updateElement`, `removeElement`,

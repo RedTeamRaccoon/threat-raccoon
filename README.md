@@ -81,8 +81,8 @@ It runs in two modes:
 - **Desktop mode** — bring your own API key, stored encrypted locally, with a local stdio MCP server.
 
 In-app assistant providers: Anthropic, OpenAI, GitHub Copilot and Claude Code (OAuth).
-See the [AI assistant guide](docs/usage/ai-assistant.md) — including step-by-step **Claude Code / OpenCode / Codex**
-MCP walkthroughs — and the
+See the [AI assistant guide](docs/usage/ai-assistant.md) — including step-by-step **Claude Code / GitHub Copilot
+CLI / OpenCode / Codex** MCP walkthroughs — and the
 [environment configuration](docs/configure/configure.md#ai-assistant-and-mcp-environment) for setup.
 
 ### Version 1.x maintenance mode
