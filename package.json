@@ -24,7 +24,7 @@
     "pretest": "npm-run-all pretest:server pretest:site",
     "pretest:server": "cd td.server && npm run pretest",
     "pretest:site": "cd td.vue && npm run pretest",
-    "postinstall": "cd td.server && npm install && cd ../td.vue && npm install",
+    "postinstall": "cd td.server && npm install && cd ../td.vue && npm install && cd ../shared/tmcore && npm install",
     "start": "npm-run-all build:vue build:server start:server start:site",
     "start:desktop": "cd td.vue && npm run start:desktop",
     "start:server": "cd td.server && npm run start:server",
