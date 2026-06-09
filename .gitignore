@@ -87,6 +87,14 @@
 !td.server/src/env/*.js
 !td.server/src/helpers/
 !td.server/src/helpers/*.js
+!td.server/src/llm/
+!td.server/src/llm/*.js
+!td.server/src/llm/providers/
+!td.server/src/llm/providers/*.js
+!td.server/src/mcp/
+!td.server/src/mcp/*.js
+!td.server/src/mcp/stores/
+!td.server/src/mcp/stores/*.js
 !td.server/src/providers/
 !td.server/src/providers/*.js
 !td.server/src/repositories/
@@ -106,6 +114,10 @@
 !td.server/test/env/*.spec.js
 !td.server/test/helpers/
 !td.server/test/helpers/*.spec.js
+!td.server/test/llm/
+!td.server/test/llm/*.spec.js
+!td.server/test/mcp/
+!td.server/test/mcp/*.spec.js
 !td.server/test/mocks/
 !td.server/test/mocks/*mock*js
 !td.server/test/providers/
@@ -123,6 +135,16 @@
 !td.server/package.json
 !td.server/package-lock.json
 !td.server/jsconfig.json
+
+# Shared tmcore operations core
+!shared/
+!shared/tmcore/
+!shared/tmcore/*.js
+!shared/tmcore/*.json
+!shared/tmcore/schema/
+!shared/tmcore/schema/*.json
+!shared/tmcore/tests/
+!shared/tmcore/tests/*.js
 
 # Vue front end
 !td.vue
@@ -142,6 +164,8 @@
 !td.vue/src/assets/schema/*.json
 !td.vue/src/components/
 !td.vue/src/components/*.vue
+!td.vue/src/components/Assistant/
+!td.vue/src/components/Assistant/*.vue
 !td.vue/src/components/printed-report/
 !td.vue/src/components/printed-report/*.vue
 !td.vue/src/components/report/
@@ -159,6 +183,8 @@
 !td.vue/src/router/*.js
 !td.vue/src/service/
 !td.vue/src/service/*.js
+!td.vue/src/service/assistant/
+!td.vue/src/service/assistant/*.js
 !td.vue/src/service/api/
 !td.vue/src/service/api/*.js
 !td.vue/src/service/diagram/
@@ -270,6 +296,8 @@
 !td.vue/tests/unit/router/*.spec.js
 !td.vue/tests/unit/service/
 !td.vue/tests/unit/service/*.spec.js
+!td.vue/tests/unit/service/assistant/
+!td.vue/tests/unit/service/assistant/*.spec.js
 !td.vue/tests/unit/service/api/
 !td.vue/tests/unit/service/api/*.spec.js
 !td.vue/tests/unit/service/diagram/
@@ -318,6 +346,8 @@
 !td.vue/tests/unit/service/x6/shapes/*.spec.js
 !td.vue/tests/unit/store/actions/
 !td.vue/tests/unit/store/actions/*.spec.js
+!td.vue/tests/unit/store/modules/
+!td.vue/tests/unit/store/modules/*.spec.js
 !td.vue/tests/unit/store/modules/
 !td.vue/tests/unit/store/modules/*.spec.js
 !td.vue/tests/unit/views/

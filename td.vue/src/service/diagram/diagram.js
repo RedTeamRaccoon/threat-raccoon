@@ -8,9 +8,23 @@ passiveSupport({
     events: ['touchstart', 'mousewheel']
 });
 
+// Trust boundaries must render BEHIND other components, otherwise their shape
+// sits on top and intercepts pointer events on the elements inside them. The
+// canvas enforces this on draw (x6/graph/events.js), but imported/MCP-built
+// models can carry any stored zIndex — so normalise on load here too, making
+// "boundaries never block clicks" an invariant for every model TD opens.
+const sendBoundariesToBack = (diagram) => {
+    (diagram.cells || []).forEach((cell) => {
+        if (cell.shape === 'trust-boundary-box' || cell.shape === 'trust-boundary-curve') {
+            cell.zIndex = -1;
+        }
+    });
+};
+
 const drawGraph = (diagram, graph) => {
     console.debug('open diagram version: ' + diagram.version);
     diagram.version = appVersion;
+    sendBoundariesToBack(diagram);
     graph.fromJSON(diagram);
     return graph;
 };

@@ -64,6 +64,24 @@ You can [download installers](https://github.com/OWASP/threat-dragon/releases) f
 End user help is available for both the latest [version 2.x][docs]
 and the previous [version 1.x](https://owasp.org/www-project-threat-dragon/docs-1/).
 
+## AI assistant and native MCP control
+
+This fork adds a built-in AI assistant and native [Model Context Protocol](https://modelcontextprotocol.io) support.
+You can chat with an AI agent, share application design documents, and collaboratively build a complete threat
+model that is drawn **live on the diagram canvas** — actors, processes, stores, data flows, trust boundaries and
+STRIDE threats. The same threat-model operations are exposed as an MCP server, so external MCP clients
+(such as Claude Desktop, Claude Code or Cursor) can drive Threat Dragon directly.
+
+It runs in two modes:
+
+- **Server mode** (web / Docker) — a configured provider key is held server-side and the assistant is gated behind
+  the existing login; an authenticated HTTP MCP endpoint is exposed at `/api/mcp`.
+- **Desktop mode** — bring your own API key, stored encrypted locally, with a local stdio MCP server.
+
+Supported providers are Anthropic, OpenAI, GitHub Copilot and Claude Code (OAuth).
+See the [AI assistant guide](docs/usage/ai-assistant.md) for usage and the
+[environment configuration](docs/configure/configure.md#ai-assistant-and-mcp-environment) for setup.
+
 ### Version 1.x maintenance mode
 
 Threat Dragon was originally written using AngularJS version 1.x, but this version of Angular reached end of life.

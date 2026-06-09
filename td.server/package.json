@@ -48,9 +48,13 @@
   },
   "resolutions": {},
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
     "@babel/runtime": "^7.29.2",
     "@gitbeaker/rest": "^43.8.0",
     "@googleapis/drive": "^20.2.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "axios": "^1.16.0",
     "bitbucket": "^2.11.0",
     "dotenv": "^16.0.3",
@@ -59,6 +63,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "octonode": "^0.10.2",
+    "openai": "^6.39.1",
     "serve-favicon": "^2.5.0",
     "winston": "^3.8.2"
   },

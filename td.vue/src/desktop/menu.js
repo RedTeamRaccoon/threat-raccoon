@@ -110,6 +110,20 @@ export function getMenuTemplate () {
         { role: 'viewMenu' },
         { role: 'windowMenu' },
         {
+            // fall back to English while other locales are pending assistant strings
+            label: ((messages[language] && messages[language].assistant) || messages[defaultLanguage].assistant).title,
+            submenu: [
+                {
+                    label: ((messages[language] && messages[language].assistant) || messages[defaultLanguage].assistant).settings,
+                    click () {
+                        if (mainWindow) {
+                            mainWindow.webContents.send('open-llm-settings');
+                        }
+                    }
+                }
+            ]
+        },
+        {
             label: messages[language].desktop.help.heading,
             submenu: [
                 {

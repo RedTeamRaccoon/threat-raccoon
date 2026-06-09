@@ -521,6 +521,41 @@ const messages = {
         },
         instructions: 'Great! Let\'s get you to your model.',
         continue: 'Continue to Threat Model'
+    },
+    assistant: {
+        title: 'AI Assistant',
+        settings: 'AI Assistant Settings…',
+        toggle: 'Toggle AI assistant',
+        clear: 'Clear conversation',
+        close: 'Close assistant',
+        unavailable: 'The AI assistant is not enabled for this instance.',
+        empty: 'Describe your system or share a design document, then ask me to build a threat model.',
+        noDiagram: 'Open a diagram to start collaborating on a threat model.',
+        roles: {
+            you: 'You',
+            assistant: 'Assistant'
+        },
+        composer: {
+            placeholder: 'Ask the assistant to build or refine your threat model…',
+            attach: 'Attach design docs…',
+            browse: 'Browse',
+            send: 'Send',
+            stop: 'Stop'
+        },
+        attachment: {
+            image: 'Image',
+            tooLarge: 'Attachments exceed the size limit. Please remove some before sending.'
+        },
+        settingsModal: {
+            intro: 'Bring your own API key. Keys are stored encrypted on this device and never leave it except to call the selected provider.',
+            provider: 'Provider',
+            apiKey: 'API key',
+            apiKeyPlaceholder: 'Paste your API key',
+            save: 'Save key',
+            clear: 'Remove',
+            configured: 'Configured',
+            notConfigured: 'Not set'
+        }
     }
 };
 

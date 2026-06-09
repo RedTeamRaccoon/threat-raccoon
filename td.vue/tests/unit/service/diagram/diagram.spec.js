@@ -49,6 +49,23 @@ describe('service/diagram/diagram.js', () => {
         });
     });
 
+    describe('boundary z-order normalisation', () => {
+        it('sends trust boundaries to the back (zIndex -1) on load so they cannot block clicks', () => {
+            const withBoundaries = {
+                ...diagramMock,
+                cells: [
+                    { id: 'a', shape: 'process', zIndex: 0 },
+                    { id: 'b', shape: 'trust-boundary-box', zIndex: 10 },
+                    { id: 'c', shape: 'trust-boundary-curve', zIndex: 10 }
+                ]
+            };
+            diagram.edit(null, withBoundaries);
+            expect(withBoundaries.cells.find((c) => c.id === 'b').zIndex).toBe(-1);
+            expect(withBoundaries.cells.find((c) => c.id === 'c').zIndex).toBe(-1);
+            expect(withBoundaries.cells.find((c) => c.id === 'a').zIndex).toBe(0);
+        });
+    });
+
     describe('dispose', () => {
         beforeEach(() => {
             events.removeListeners = jest.fn();

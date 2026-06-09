@@ -14,7 +14,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     modelSave: (modelData, fileName) => ipcRenderer.send('model-save', modelData, fileName),
     updateMenu: (locale) => ipcRenderer.send('update-menu', locale),
 
+    // LLM settings / BYO key management (renderer -> main, request/response)
+    llmGetSettings: () => ipcRenderer.invoke('llm-get-settings'),
+    llmSetSettings: (settings) => ipcRenderer.invoke('llm-set-settings', settings),
+    llmGetProviders: () => ipcRenderer.invoke('llm-get-providers'),
+    llmSetKey: (provider, key) => ipcRenderer.invoke('llm-set-key', provider, key),
+    llmHasKey: (provider) => ipcRenderer.invoke('llm-has-key', provider),
+
+    // LLM streaming relay (renderer <-> main)
+    llmStreamStart: (request) => ipcRenderer.send('llm-stream-start', request),
+    llmStreamAbort: () => ipcRenderer.send('llm-stream-abort'),
+    onLlmStreamEvent: (callback) => {
+        const listener = (event, evt) => callback(event, evt);
+        ipcRenderer.on('llm-stream-event', listener);
+        return () => ipcRenderer.removeListener('llm-stream-event', listener);
+    },
+
     // electron main to renderer
+    onOpenLlmSettings: (callback) => ipcRenderer.on('open-llm-settings', callback),
     onCloseAppRequest: (callback) => ipcRenderer.on('close-app-request', callback),
     onCloseModelRequest: (callback) => ipcRenderer.on('close-model-request', callback),
     onNewModelRequest: (callback) => ipcRenderer.on('new-model-request', callback),
