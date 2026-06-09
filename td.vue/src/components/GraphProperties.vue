@@ -99,6 +99,18 @@
                 {{ $t('threatmodel.properties.outOfScope') }}
               </label>
             </div>
+            <div class="form-check">
+              <input
+                id="wrapLabel"
+                :checked="cellRef.data.wrapLabel !== false"
+                class="form-check-input"
+                type="checkbox"
+                @change="cellRef.data.wrapLabel = $event.target.checked; onChangeWrapLabel()"
+              >
+              <label class="form-check-label" for="wrapLabel">
+                {{ $t('threatmodel.properties.wrapLabel') }}
+              </label>
+            </div>
           </b-form-group>
         </b-col>
 
@@ -395,6 +407,11 @@ export default {
         },
         onChangeScope() {
             document.getElementById('reasonoutofscope').disabled = !this.cellRef.data.outOfScope;
+            dataChanged.updateProperties(this.cellRef);
+            dataChanged.updateStyleAttrs(this.cellRef);
+            this.updateComponent();
+        },
+        onChangeWrapLabel() {
             dataChanged.updateProperties(this.cellRef);
             dataChanged.updateStyleAttrs(this.cellRef);
             this.updateComponent();

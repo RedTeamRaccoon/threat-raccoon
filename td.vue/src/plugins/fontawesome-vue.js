@@ -39,6 +39,12 @@ import {
     faPaperPlane,
     faStop,
     faImage,
+    faSun,
+    faMoon,
+    faMagnet,
+    faSitemap,
+    faExpand,
+    faCompress,
 } from '@fortawesome/free-solid-svg-icons';
 
 import {faBitbucket, faGithub, faGitlab, faVuejs, faGoogle, faGoogleDrive} from '@fortawesome/free-brands-svg-icons';
@@ -85,7 +91,13 @@ library.add(
     faRobot,
     faPaperPlane,
     faStop,
-    faImage
+    faImage,
+    faSun,
+    faMoon,
+    faMagnet,
+    faSitemap,
+    faExpand,
+    faCompress
 );
 
 export { FontAwesomeIcon };

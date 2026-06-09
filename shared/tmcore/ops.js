@@ -121,8 +121,12 @@ const buildFlow = (name) => ({
     connector: 'smooth',
     labels: [
         {
-            attrs: { labelText: { text: '' } },
-            position: { distance: 0.5 }
+            // Authoritative hand-built flow-label shape: selector 'label'
+            // (NOT 'labelText') and a numeric position, so the name actually
+            // renders. TD only syncs name->label on interactive edit, not on
+            // fromJSON load, so the generated JSON must carry it directly.
+            position: 0.5,
+            attrs: { label: { text: name } }
         }
     ],
     data: {

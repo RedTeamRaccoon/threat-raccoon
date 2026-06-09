@@ -154,6 +154,49 @@ describe('service/x6/graph/data-changed.js', () => {
         });
     });
 
+    describe('label word-wrap', () => {
+        it('sets the wrapped display text for a wrappable node (default ON)', () => {
+            cell = getCell();
+            cell.isEdge.mockReturnValue(false);
+            cell.constructor = { name: 'Process' };
+            cell.getData.mockImplementation(() => ({ type: 'tm.Process', name: 'REST API (Node/Express)' }));
+            cell.size = jest.fn(() => ({ width: 100, height: 100 }));
+            cell.updateStyle = jest.fn();
+
+            dataChanged.updateStyleAttrs(cell);
+
+            expect(cell.setAttrByPath).toHaveBeenCalledWith('text/text', 'REST API\n(Node/Express)');
+        });
+
+        it('sets the single-line name when wrapLabel is disabled', () => {
+            cell = getCell();
+            cell.isEdge.mockReturnValue(false);
+            cell.constructor = { name: 'Store' };
+            cell.getData.mockImplementation(() => ({ type: 'tm.Store', name: 'My Data Store', wrapLabel: false }));
+            cell.size = jest.fn(() => ({ width: 150, height: 75 }));
+            cell.updateStyle = jest.fn();
+
+            dataChanged.updateStyleAttrs(cell);
+
+            expect(cell.setAttrByPath).toHaveBeenCalledWith('text/text', 'My Data Store');
+        });
+
+        it('re-wraps the display text from data.name on a name change', () => {
+            const cellData = { type: 'tm.Process', name: 'REST API (Node/Express)' };
+            cell = {
+                getData: jest.fn(() => cellData),
+                setName: jest.fn(),
+                setAttrByPath: jest.fn(),
+                size: jest.fn(() => ({ width: 100, height: 100 }))
+            };
+
+            dataChanged.updateName(cell, 'REST API (Node/Express)');
+
+            expect(cell.setName).toHaveBeenCalledWith('REST API (Node/Express)');
+            expect(cell.setAttrByPath).toHaveBeenCalledWith('text/text', 'REST API\n(Node/Express)');
+        });
+    });
+
     describe('with an unknown shape', () => {
         beforeEach(() => {
             cell = getCell();

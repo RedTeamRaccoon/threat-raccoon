@@ -31,7 +31,8 @@ describe('components/Navbar.vue', () => {
         mockStore = new Vuex.Store({
             getters: {
                 isAdmin: () => false,
-                username: () => 'foobar'
+                username: () => 'foobar',
+                isDark: () => false
             },
             dispatch: () => {}
         });

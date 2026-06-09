@@ -64,6 +64,20 @@ describe('service/diagram/diagram.js', () => {
             expect(withBoundaries.cells.find((c) => c.id === 'c').zIndex).toBe(-1);
             expect(withBoundaries.cells.find((c) => c.id === 'a').zIndex).toBe(0);
         });
+
+        it('repairs the unregistered legacy "trust-boundary" shape so fromJSON does not throw', () => {
+            const withLegacy = {
+                ...diagramMock,
+                cells: [
+                    { id: 'a', shape: 'process', zIndex: 0 },
+                    { id: 'b', shape: 'trust-boundary', zIndex: 10, source: { x: 0, y: 0 }, target: { x: 0, y: 100 } }
+                ]
+            };
+            diagram.edit(null, withLegacy);
+            const repaired = withLegacy.cells.find((c) => c.id === 'b');
+            expect(repaired.shape).toBe('trust-boundary-curve');
+            expect(repaired.zIndex).toBe(-1);
+        });
     });
 
     describe('dispose', () => {

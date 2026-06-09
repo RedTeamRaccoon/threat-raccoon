@@ -5,11 +5,15 @@ import Vuex from 'vuex';
 import TdDropdown from '@/components/Dropdown.vue';
 import TdFormButton from '@/components/FormButton.vue';
 import TdGraphButtons from '@/components/GraphButtons.vue';
+import layout from '@/service/x6/layout.js';
+
+jest.mock('@/service/x6/layout.js', () => ({ autoLayout: jest.fn() }));
 
 describe('components/GraphButtons.vue', () => {
     let btn, graph, localVue, wrapper, mockUndo, mockRedo, mockCanUndo, mockCanRedo;
 
     beforeEach(() => {
+        localStorage.clear();
         mockUndo = jest.fn();
         mockRedo = jest.fn();
         mockCanUndo = jest.fn().mockReturnValue(true);
@@ -232,6 +236,71 @@ describe('components/GraphButtons.vue', () => {
                     expect(graph.showGrid).toHaveBeenCalledTimes(1);
                 });
             });
+        });
+    });
+
+    describe('toggle snap', () => {
+        let mockEnable, mockDisable;
+
+        beforeEach(() => {
+            mockEnable = jest.fn();
+            mockDisable = jest.fn();
+            graph.getPlugin = jest.fn((name) =>
+                name === 'snapline' ? { enable: mockEnable, disable: mockDisable } : undefined
+            );
+            btn = getButtonByIcon('magnet');
+        });
+
+        it('renders the snap toggle button', () => {
+            expect(btn.attributes('text')).toEqual('');
+        });
+
+        it('disables snapping when toggled off from the default on state', () => {
+            wrapper.vm.toggleSnap();
+            expect(mockDisable).toHaveBeenCalledTimes(1);
+            expect(wrapper.vm.snapEnabled).toBe(false);
+        });
+
+        it('re-enables snapping when toggled back on', () => {
+            wrapper.vm.toggleSnap();
+            wrapper.vm.toggleSnap();
+            expect(mockEnable).toHaveBeenCalled();
+            expect(wrapper.vm.snapEnabled).toBe(true);
+        });
+
+        it('persists the preference to localStorage', () => {
+            wrapper.vm.toggleSnap();
+            expect(localStorage.getItem('td-snap-enabled')).toEqual('false');
+        });
+    });
+
+    describe('auto-arrange', () => {
+        beforeEach(() => {
+            btn = getButtonByIcon('sitemap');
+        });
+
+        it('renders the auto-arrange button', () => {
+            expect(btn.attributes('text')).toEqual('');
+        });
+
+        it('runs the layout service on the graph', () => {
+            wrapper.vm.autoArrange();
+            expect(layout.autoLayout).toHaveBeenCalledWith(graph);
+        });
+    });
+
+    describe('fullscreen', () => {
+        beforeEach(() => {
+            btn = getButtonByIcon('expand');
+        });
+
+        it('renders the fullscreen toggle button', () => {
+            expect(btn.attributes('text')).toEqual('');
+        });
+
+        it('emits a toggle-fullscreen event', () => {
+            wrapper.vm.toggleFullscreen();
+            expect(wrapper.emitted('toggle-fullscreen')).toBeTruthy();
         });
     });
 

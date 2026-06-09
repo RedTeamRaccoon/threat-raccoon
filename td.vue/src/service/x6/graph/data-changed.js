@@ -8,6 +8,7 @@ import { CELL_DATA_UPDATED } from '@/store/actions/cell.js';
 import { THREATMODEL_MODIFIED } from '@/store/actions/threatmodel.js';
 import threats from '@/service/threats/index.js';
 import defaultProperties from '@/service/entity/default-properties.js';
+import textWrap from '@/service/x6/text-wrap.js';
 
 const styles = {
     default: {
@@ -64,6 +65,9 @@ const updateStyleAttrs = (cell) => {
         console.debug('Update cell style');
         cell.updateStyle(color, strokeDasharray, strokeWidth, sourceMarker);
     }
+
+    // Re-wrap the display label from data.name; no-op for unsupported cells.
+    textWrap.applyLabelWrap(cell);
 };
 
 const updateName = (cell, name) => {
@@ -75,6 +79,8 @@ const updateName = (cell, name) => {
             cellData.name = name;
         }
         cell.setName(cellData.name);
+        // setName writes the raw name; re-wrap the display from data.name.
+        textWrap.applyLabelWrap(cell);
     }
 };
 

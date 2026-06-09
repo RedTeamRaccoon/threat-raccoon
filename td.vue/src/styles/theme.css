@@ -1,0 +1,299 @@
+/*
+ * Threat Dragon theme contract.
+ * Semantic --td-* tokens: light defaults on :root, dark overrides on body.dark.
+ * New UI should consume these variables so it is theme-aware automatically.
+ * Open-threat red is intentionally NOT themed and stays visible in both modes.
+ */
+
+:root {
+  --td-bg: #ffffff;
+  --td-surface: #ffffff;
+  --td-surface-raised: #f5f5f5;
+  --td-text: #333333;
+  --td-text-muted: #6c757d;
+  --td-border: #dee2e6;
+  --td-accent: #dd3820;
+  --td-accent-2: #ff8c00;
+  --td-navbar-bg: #dd3820;
+  --td-canvas-bg: #ffffff;
+  --td-canvas-grid: #e6e6e6;
+  --td-shape-stroke: #333333;
+  --td-shape-text: #333333;
+}
+
+body.dark {
+  --td-bg: #1b1b1f;
+  --td-surface: #26262c;
+  --td-surface-raised: #2f2f37;
+  --td-text: #e7e7ea;
+  --td-text-muted: #9a9aa3;
+  --td-border: #3a3a44;
+  --td-accent: #dd3820;
+  --td-accent-2: #ff8c00;
+  --td-navbar-bg: #1f1f24;
+  --td-canvas-bg: #1b1b1f;
+  --td-canvas-grid: #33333a;
+  --td-shape-stroke: #c7c7cf;
+  --td-shape-text: #e7e7ea;
+}
+
+/* ---- Base ------------------------------------------------------------- */
+body.dark {
+  background-color: var(--td-bg);
+  color: var(--td-text);
+}
+
+body.dark a:not(.btn):not(.nav-link):not(.navbar-brand) {
+  color: var(--td-accent-2);
+}
+
+body.dark h1, body.dark h2, body.dark h3,
+body.dark h4, body.dark h5, body.dark h6,
+body.dark label, body.dark p, body.dark small,
+body.dark .text-muted {
+  color: var(--td-text);
+}
+
+body.dark .text-muted {
+  color: var(--td-text-muted) !important;
+}
+
+/* ---- Navbar ----------------------------------------------------------- */
+body.dark #navbar {
+  background-color: var(--td-navbar-bg) !important;
+  border-color: var(--td-border) !important;
+}
+
+/* ---- Cards / panels --------------------------------------------------- */
+body.dark .card {
+  background-color: var(--td-surface);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+body.dark .card-header,
+body.dark .card-footer {
+  background-color: var(--td-surface-raised);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+/* ---- List groups ------------------------------------------------------ */
+body.dark .list-group-item {
+  background-color: var(--td-surface);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+/* ---- Tables ----------------------------------------------------------- */
+body.dark .table {
+  color: var(--td-text);
+  border-color: var(--td-border);
+}
+
+body.dark .table th,
+body.dark .table td {
+  border-color: var(--td-border);
+}
+
+body.dark .table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+body.dark .table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+  color: var(--td-text);
+}
+
+/* ---- Forms ------------------------------------------------------------ */
+body.dark .form-control,
+body.dark .custom-select,
+body.dark .input-group-text {
+  background-color: var(--td-surface-raised);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+body.dark .form-control:focus,
+body.dark .custom-select:focus {
+  background-color: var(--td-surface-raised);
+  border-color: var(--td-accent);
+  color: var(--td-text);
+}
+
+body.dark .form-control::placeholder {
+  color: var(--td-text-muted);
+}
+
+body.dark .form-control:disabled,
+body.dark .form-control[readonly] {
+  background-color: var(--td-surface);
+  color: var(--td-text-muted);
+}
+
+/* ---- Dropdowns -------------------------------------------------------- */
+body.dark .dropdown-menu {
+  background-color: var(--td-surface);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+body.dark .dropdown-item {
+  color: var(--td-text);
+}
+
+body.dark .dropdown-item:hover,
+body.dark .dropdown-item:focus {
+  background-color: var(--td-surface-raised);
+  color: var(--td-text);
+}
+
+/* ---- Modals / dialogs ------------------------------------------------- */
+body.dark .modal-content {
+  background-color: var(--td-surface);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+body.dark .modal-header,
+body.dark .modal-footer {
+  border-color: var(--td-border);
+}
+
+body.dark .modal-header .close {
+  color: var(--td-text);
+  text-shadow: none;
+}
+
+/* ---- Tabs / borders --------------------------------------------------- */
+body.dark .nav-tabs {
+  border-color: var(--td-border);
+}
+
+body.dark .nav-tabs .nav-link.active {
+  background-color: var(--td-surface);
+  border-color: var(--td-border) var(--td-border) var(--td-surface);
+  color: var(--td-text);
+}
+
+body.dark .nav-tabs .nav-link:not(.active) {
+  color: var(--td-text-muted);
+}
+
+body.dark hr {
+  border-color: var(--td-border);
+}
+
+/* ---- Hero / jumbotron ------------------------------------------------- */
+/* .td-hero hardcodes a light box and inherits text colour; under dark mode
+ * the inherited text is light, so the box must darken too or text vanishes. */
+body.dark .td-hero {
+  background-color: var(--td-surface-raised);
+  color: var(--td-text);
+}
+
+body.dark .td-hero > hr {
+  border-top-color: var(--td-border);
+}
+
+/* ---- Custom dropdown (navbar) ----------------------------------------- */
+/* TdDropdown is not a bootstrap .dropdown - it has its own white menu. */
+body.dark .td-dropdown-menu {
+  background-color: var(--td-surface);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+body.dark .td-dropdown-item {
+  color: var(--td-text);
+}
+
+body.dark .td-dropdown-item:hover,
+body.dark .td-dropdown-item:focus {
+  background-color: var(--td-surface-raised);
+  color: var(--td-text);
+}
+
+body.dark .td-dropdown-divider {
+  border-top-color: var(--td-border);
+}
+
+/* ---- Report sticky header --------------------------------------------- */
+/* The report's sticky bar is hardcoded white; dark-mode text would vanish.
+ * !important needed: the rule is scoped and its route chunk loads after this
+ * sheet, so it would otherwise win the equal-specificity tie. */
+body.dark .sticky {
+  background-color: var(--td-surface) !important;
+}
+
+/* ---- Stencil (entity sidebar) ----------------------------------------- */
+body.dark .x6-widget-stencil {
+  background-color: var(--td-surface);
+  color: var(--td-text);
+}
+
+body.dark .x6-widget-stencil-title,
+body.dark .x6-widget-stencil-group-title {
+  background-color: var(--td-surface-raised) !important;
+  color: var(--td-text) !important;
+}
+
+body.dark .x6-widget-stencil-search-text {
+  background-color: var(--td-surface-raised);
+  border-color: var(--td-border);
+  color: var(--td-text);
+}
+
+/* ---- Canvas ----------------------------------------------------------- */
+body.dark #graph-container,
+body.dark .x6-graph-scroller,
+body.dark .x6-graph {
+  background-color: var(--td-canvas-bg);
+}
+
+/*
+ * Shape stroke + label text are recoloured via CSS overriding the SVG
+ * presentation attributes - no model mutation. Only DEFAULT-coloured
+ * (#333333) strokes are retargeted, so open-threat red (stroke="red") and
+ * any other threat-state colours are left untouched.
+ */
+body.dark #graph-container [stroke="#333333"],
+body.dark #graph-container [stroke="#333"] {
+  stroke: var(--td-shape-stroke);
+}
+
+body.dark #graph-container [fill="#333333"],
+body.dark #graph-container [fill="#333"] {
+  fill: var(--td-shape-text);
+}
+
+body.dark #graph-container .x6-graph-svg-viewport text {
+  fill: var(--td-shape-text);
+}
+
+/*
+ * Flow edge labels render as a white pill (labelBody ellipse, fill #fff from
+ * default-properties) with text on top; the text rule above recolours that
+ * text light, so the pill must darken too or it is light-on-white. The pill
+ * is the only #fff fill on the canvas. Open-threat styling lives on the edge
+ * LINE stroke (untouched here), not the label.
+ */
+body.dark #graph-container .x6-edge-label ellipse,
+body.dark #graph-container [fill="#fff"] {
+  fill: var(--td-surface);
+}
+
+body.dark #graph-container .x6-edge-label text {
+  fill: var(--td-shape-text);
+}
+
+/* Grid dots: keep the default layer but soften it for the dark canvas. */
+body.dark #graph-container .x6-graph-grid {
+  opacity: 0.4;
+}
+
+/* Snapline guides pick up the brand accent. */
+body.dark .x6-widget-snapline-horizontal,
+body.dark .x6-widget-snapline-vertical {
+  stroke: var(--td-accent-2);
+}

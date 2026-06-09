@@ -69,6 +69,7 @@ describe('components/GraphButtons.vue', () => {
 
         graphMock = {
             toJSON: jest.fn().mockReturnValue({ cells: [] }),
+            on: jest.fn(),
             history: {
                 on: jest.fn()
             },

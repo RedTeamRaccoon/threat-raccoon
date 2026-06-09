@@ -73,6 +73,7 @@
     "url": "https://github.com/OWASP/threat-dragon/issues"
   },
   "dependencies": {
+    "@antv/layout": "^0.3.25",
     "@antv/x6": "^2.18.1",
     "@antv/x6-plugin-clipboard": "^2.1.6",
     "@antv/x6-plugin-export": "^2.1.6",

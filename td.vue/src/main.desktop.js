@@ -14,6 +14,7 @@ import { importTmbom } from './service/migration/tmBom/tmBom';
 
 import schema from './service/schema/ajv';
 import storeFactory from './store/index.js';
+import { applyTheme } from './store/modules/theme.js';
 import authActions from './store/actions/auth.js';
 import providerActions from './store/actions/provider.js';
 import tmActions from './store/actions/threatmodel.js';
@@ -21,6 +22,8 @@ import tmActions from './store/actions/threatmodel.js';
 import BootstrapVue from './plugins/bootstrap-vue.js';
 import { FontAwesomeIcon } from './plugins/fontawesome-vue.js';
 import Toast, { toastOptions, installToastGlobalProperties } from './plugins/toastification.js';
+
+import './styles/theme.css';
 
 const t = (...args) => i18nFactory.get().t(...args);
 
@@ -207,7 +210,9 @@ const openTmBom = (jsonModel) => {
 };
 
 const app = createApp(App);
-app.use(storeFactory.get());
+const store = storeFactory.get();
+applyTheme(store.state.theme.theme);
+app.use(store);
 app.use(router.get());
 app.use(i18nFactory.get());
 app.use(BootstrapVue);

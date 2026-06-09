@@ -10,7 +10,8 @@ describe('service/entity/default-properties.js', () => {
                 outOfScope: false,
                 reasonOutOfScope: '',
                 hasOpenThreats: false,
-                providesAuthentication: false
+                providesAuthentication: false,
+                wrapLabel: true
             });
         });
 
@@ -58,7 +59,8 @@ describe('service/entity/default-properties.js', () => {
                 handlesCardPayment: false,
                 handlesGoodsOrServices: false,
                 isWebApplication: false,
-                privilegeLevel: ''
+                privilegeLevel: '',
+                wrapLabel: true
             });
         });
 
@@ -74,7 +76,8 @@ describe('service/entity/default-properties.js', () => {
                 isEncrypted: false,
                 isSigned: false,
                 storesCredentials: false,
-                storesInventory: false
+                storesInventory: false,
+                wrapLabel: true
             });
         });
 
