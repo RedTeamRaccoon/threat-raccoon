@@ -127,12 +127,56 @@ const buildOAuthFlags = (config) => ({
     googleEnabled: !isNullish(config.GOOGLE_CLIENT_ID)
 });
 
+const isTrue = (value) => value === 'true' || value === true;
+
+// Static provider metadata. `models` is intentionally just the single
+// env-configured model per provider for v1 (no invented catalog).
+const LLM_PROVIDER_META = [
+    { id: 'anthropic', label: 'Anthropic Claude', keyVar: 'LLM_ANTHROPIC_API_KEY', modelVar: 'LLM_ANTHROPIC_MODEL', defaultModel: 'claude-opus-4-8' },
+    { id: 'openai', label: 'OpenAI', keyVar: 'LLM_OPENAI_API_KEY', modelVar: 'LLM_OPENAI_MODEL', defaultModel: 'gpt-4o' },
+    { id: 'copilot', label: 'GitHub Copilot', keyVar: 'LLM_COPILOT_API_KEY', modelVar: 'LLM_COPILOT_MODEL', defaultModel: 'gpt-4o' },
+    { id: 'claudecode', label: 'Claude Code', keyVar: 'LLM_CLAUDECODE_OAUTH_TOKEN', modelVar: 'LLM_CLAUDECODE_MODEL', defaultModel: 'claude-opus-4-8' }
+];
+
+const resolveModel = (config, meta) => config[meta.modelVar] || meta.defaultModel;
+
+const buildLlmProviders = (config) => LLM_PROVIDER_META.
+    filter((meta) => !isNullish(config[meta.keyVar])).
+    map((meta) => {
+        const modelId = resolveModel(config, meta);
+        return {
+            id: meta.id,
+            label: meta.label,
+            models: [{ id: modelId, label: modelId }],
+            default: modelId
+        };
+    });
+
+const defaultModelFor = (config, providerId) => {
+    const meta = LLM_PROVIDER_META.find((m) => m.id === providerId);
+    return meta ? resolveModel(config, meta) : null;
+};
+
+// FLAGS / metadata ONLY — never expose provider keys/tokens through /api/config.
+const buildLlmFlags = (config) => {
+    const llmDefaultProvider = config.LLM_PROVIDER || null;
+    return {
+        llmEnabled: isTrue(config.LLM_ENABLED),
+        llmAllowUserKey: isTrue(config.LLM_ALLOW_USER_KEY),
+        mcpHttpEnabled: isTrue(config.MCP_HTTP_ENABLED),
+        llmDefaultProvider,
+        llmDefaultModel: llmDefaultProvider ? defaultModelFor(config, llmDefaultProvider) : null,
+        llmProviders: buildLlmProviders(config)
+    };
+};
+
 export const buildConfig = (config, { intl = Intl } = {}) => {
     const localeConfig = buildLocaleConfig(config, intl);
 
     return {
         value: Object.freeze({
             ...buildOAuthFlags(config),
+            ...buildLlmFlags(config),
             localEnabled: true,
             allowedLocales: Object.freeze([...localeConfig.allowedLocales]),
             defaultLocale: localeConfig.defaultLocale

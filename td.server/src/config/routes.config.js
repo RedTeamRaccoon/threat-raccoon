@@ -7,6 +7,8 @@ import decodeRepoPaths from './decodeRepoPaths.config.js';
 import googleProviderThreatmodelController from '../controllers/googleProviderThreatmodelController.js';
 import healthcheck from '../controllers/healthz.js';
 import homeController from '../controllers/homecontroller.js';
+import llmController from '../controllers/llmcontroller.js';
+import mcpController from '../controllers/mcpcontroller.js';
 import metadataController from '../controllers/metadataController.js';
 import templateController from '../controllers/templateController.js';
 import threatmodelController from '../controllers/threatmodelcontroller.js';
@@ -75,6 +77,15 @@ const routes = (router) => {
     router.post('/api/googleproviderthreatmodel/:folder/create', googleProviderThreatmodelController.create);
     router.put('/api/googleproviderthreatmodel/:file/update', googleProviderThreatmodelController.update);
     router.get('/api/googleproviderthreatmodel/:file/data', googleProviderThreatmodelController.model);
+
+    // AI assistant LLM proxy (SSE)
+    router.post('/api/llm/complete', llmController.complete);
+    router.get('/api/llm/providers', llmController.providers);
+
+    // Native MCP server (Streamable HTTP)
+    router.post('/api/mcp', mcpController.handlePost);
+    router.get('/api/mcp', mcpController.handleSession);
+    router.delete('/api/mcp', mcpController.handleSession);
 };
 
 const config = (app) => {

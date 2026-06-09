@@ -292,6 +292,12 @@ describe('config.helper.js', () => {
                 githubEnabled: false,
                 gitlabEnabled: false,
                 googleEnabled: false,
+                llmEnabled: false,
+                llmAllowUserKey: false,
+                mcpHttpEnabled: false,
+                llmDefaultProvider: null,
+                llmDefaultModel: null,
+                llmProviders: [],
                 localEnabled: true,
                 allowedLocales: ['en', 'es'],
                 defaultLocale: 'es'

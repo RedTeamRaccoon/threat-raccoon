@@ -4,6 +4,8 @@ import env from '../env/Env.js';
 import GithubEnv from '../env/Github.js';
 import GitlabEnv from '../env/Gitlab';
 import GoogleEnv from '../env/Google.js';
+import LlmEnv from '../env/Llm.js';
+import McpEnv from '../env/Mcp.js';
 import SecurityTxtEnv from '../env/SecurityTxt.js';
 import ThreatDragonEnv from '../env/ThreatDragon.js';
 
@@ -15,12 +17,16 @@ const tryLoadDotEnv = () => {
     const securityTxt = new SecurityTxtEnv();
     const threatDragon = new ThreatDragonEnv();
     const google = new GoogleEnv();
+    const llm = new LlmEnv();
+    const mcp = new McpEnv();
     env.get().addProvider(github);
     env.get().addProvider(gitlab);
     env.get().addProvider(encryption);
     env.get().addProvider(bitbucket);
     env.get().addProvider(threatDragon);
     env.get().addProvider(google);
+    env.get().addProvider(llm);
+    env.get().addProvider(mcp);
     env.get().addProvider(securityTxt);
     env.get().hydrate();
 };
