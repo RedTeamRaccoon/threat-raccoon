@@ -17,6 +17,7 @@ const actor = {
         reasonOutOfScope: '',
         hasOpenThreats: false,
         providesAuthentication: false,
+        wrapLabel: true,
         threats: []
     }
 };
@@ -158,6 +159,7 @@ const process = {
         handlesGoodsOrServices: false,
         isWebApplication: false,
         privilegeLevel: '',
+        wrapLabel: true,
         threats: []
     }
 };
@@ -195,6 +197,7 @@ const store = {
         isSigned: false,
         storesCredentials: false,
         storesInventory: false,
+        wrapLabel: true,
         threats: []
     }
 };

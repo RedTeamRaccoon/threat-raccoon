@@ -26,6 +26,12 @@
       </ul>
 
       <ul class="navbar-nav ml-auto">
+        <li class="nav-item" id="nav-theme-toggle">
+          <a class="nav-link" href="#" @click.prevent="toggleTheme">
+            <font-awesome-icon :icon="isDark ? 'sun' : 'moon'" class="td-fa-nav" v-b-tooltip.hover
+              :title="isDark ? $t('nav.theme.light') : $t('nav.theme.dark')"></font-awesome-icon>
+          </a>
+        </li>
         <li v-show="username" class="navbar-text logged-in-as">{{ $t('nav.loggedInAs') }} {{ username }}</li>
         <li v-show="username" class="nav-item" id="nav-sign-out">
           <a class="nav-link" href="#" @click="onLogOut">
@@ -153,6 +159,7 @@ import { mapGetters } from 'vuex';
 import threatDragonLogo from '@/assets/threatdragon_logo_image.svg';
 import owaspLogo from '@/assets/owasp.svg';
 import { LOGOUT } from '@/store/actions/auth.js';
+import { THEME_TOGGLE } from '@/store/actions/theme.js';
 import TdDropdown from './Dropdown.vue';
 import TdLocaleSelect from './LocaleSelect.vue';
 
@@ -172,12 +179,16 @@ export default {
     computed: {
         ...mapGetters([
             'username',
-            'isAdmin'
+            'isAdmin',
+            'isDark'
         ])
     },
     methods: {
         toggleNav() {
             this.isNavExpanded = !this.isNavExpanded;
+        },
+        toggleTheme() {
+            this.$store.dispatch(THEME_TOGGLE);
         },
         async onLogOut(evt) {
             evt.preventDefault();

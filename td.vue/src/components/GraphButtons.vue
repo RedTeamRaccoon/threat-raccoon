@@ -43,6 +43,24 @@
             :title="$t('threatmodel.buttons.toggleGrid')"
             text="" />
 
+        <td-form-button
+            :onBtnClick="toggleSnap"
+            icon="magnet"
+            :title="$t('threatmodel.buttons.toggleSnap')"
+            text="" />
+
+        <td-form-button
+            :onBtnClick="autoArrange"
+            icon="sitemap"
+            :title="$t('threatmodel.buttons.autoArrange')"
+            text="" />
+
+        <td-form-button
+            :onBtnClick="toggleFullscreen"
+            :icon="fullscreen ? 'compress' : 'expand'"
+            :title="$t('threatmodel.buttons.toggleFullscreen')"
+            text="" />
+
         <td-dropdown right variant="secondary" :text="$t('forms.export')" id="export-graph-btn">
             <template #default="{ close }">
                 <button type="button" class="td-dropdown-item" @click="exportPNG(); close()" id="export-graph-png">
@@ -73,6 +91,9 @@ import { mapState } from 'vuex';
 
 import TdDropdown from '@/components/Dropdown.vue';
 import TdFormButton from '@/components/FormButton.vue';
+import layout from '@/service/x6/layout.js';
+
+const SNAP_STORAGE_KEY = 'td-snap-enabled';
 
 export default {
     name: 'TdGraphButtons',
@@ -85,13 +106,33 @@ export default {
     }),
     data() {
         return {
-            gridShowing: true
+            gridShowing: true,
+            snapEnabled: true
         };
     },
     props: {
         graph: {
             required: true
+        },
+        fullscreen: {
+            type: Boolean,
+            default: false
         }
+    },
+    watch: {
+        // The graph is created by the parent (Graph.vue) after children mount,
+        // so apply the persisted snap preference once the prop becomes available.
+        graph(value) {
+            if (value) {
+                this.applySnap();
+            }
+        }
+    },
+    mounted() {
+        // restore the persisted snap preference (defaults to on, matching the
+        // snapline plugin's initial state)
+        this.snapEnabled = localStorage.getItem(SNAP_STORAGE_KEY) !== 'false';
+        this.applySnap();
     },
     methods: {
         save() {
@@ -140,6 +181,34 @@ export default {
                 this.graph.showGrid();
                 this.gridShowing = true;
             }
+        },
+        applySnap() {
+            // The parent (Graph.vue) creates the graph AFTER child components
+            // mount, so guard against it not being ready yet (the watcher
+            // re-applies once it is).
+            if (!this.graph) {
+                return;
+            }
+            const snapline = this.graph.getPlugin('snapline');
+            if (!snapline) {
+                return;
+            }
+            if (this.snapEnabled) {
+                snapline.enable();
+            } else {
+                snapline.disable();
+            }
+        },
+        toggleSnap() {
+            this.snapEnabled = !this.snapEnabled;
+            this.applySnap();
+            localStorage.setItem(SNAP_STORAGE_KEY, this.snapEnabled);
+        },
+        autoArrange() {
+            layout.autoLayout(this.graph);
+        },
+        toggleFullscreen() {
+            this.$emit('toggle-fullscreen');
         },
         async exportPNG() {
             await this.withSelectionCleared(() => {

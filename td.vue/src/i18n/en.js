@@ -5,7 +5,11 @@ const messages = {
     nav: {
         loggedInAs: 'Logged in as',
         logOut: 'Log out',
-        contentManagement: 'Content Management'
+        contentManagement: 'Content Management',
+        theme: {
+            dark: 'Switch to dark mode',
+            light: 'Switch to light mode'
+        }
     },
     home: {
         title: 'OWASP Threat Dragon',
@@ -270,13 +274,24 @@ const messages = {
             protocol: 'Protocol',
             publicNetwork: 'Public Network',
             storesCredentials: 'Stores Credentials',
-            storesInventory: 'Stores Inventory'
+            storesInventory: 'Stores Inventory',
+            wrapLabel: 'Wrap label'
         },
         buttons: {
             delete: 'Delete selected',
             redo: 'Redo edit',
             shortcuts: 'Keyboard shortcuts',
             toggleGrid: 'Toggle grid',
+            toggleSnap: 'Toggle snap to guides',
+            autoArrange: 'Auto-arrange layout',
+            toggleFullscreen: 'Toggle fullscreen',
+            resizeCanvas: 'Drag to resize canvas',
+            zorder: {
+                toFront: 'Bring to front',
+                forward: 'Bring forward',
+                backward: 'Send backward',
+                toBack: 'Send to back'
+            },
             undo: 'Undo edit',
             zoomIn: 'Zoom in',
             zoomOut: 'Zoom out'

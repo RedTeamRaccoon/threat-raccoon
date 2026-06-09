@@ -31,7 +31,7 @@ const getEditGraph = (container, ctor = Graph) => {
             min: 0.1, // default value is 0.01
             max: 3.2 // default value is 16
         },
-        preventDefaultContextMenu: false,
+        preventDefaultContextMenu: true,
         connecting: {
             allowBlank: true,
             allowLoop: true, // loops do not make sense in a threat model diagram, but allow anyway
