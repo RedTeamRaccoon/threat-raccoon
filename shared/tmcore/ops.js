@@ -1,0 +1,469 @@
+import { v4 as uuidv4 } from 'uuid';
+
+import { validateModel } from './validate.js';
+import taxonomy from './taxonomy.js';
+
+/**
+ * Structured error thrown when an operation produces an invalid model
+ * (or receives invalid arguments). Carries AJV `.errors` when relevant.
+ */
+export class TmcoreError extends Error {
+    constructor(message, errors = null) {
+        super(message);
+        this.name = 'TmcoreError';
+        this.errors = errors;
+    }
+}
+
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+// --- cell templates (i18n-decoupled mirror of default-properties.js) -------
+
+const DEFAULT_NAMES = {
+    actor: 'Actor',
+    process: 'Process',
+    store: 'Store',
+    flow: 'Data flow',
+    boundary: 'Trust boundary'
+};
+
+const buildActor = (name) => ({
+    position: { x: 0, y: 0 },
+    size: { width: 150, height: 80 },
+    label: name,
+    shape: 'actor',
+    zIndex: 0,
+    data: {
+        type: 'tm.Actor',
+        name,
+        description: '',
+        isTrustBoundary: false,
+        outOfScope: false,
+        reasonOutOfScope: '',
+        hasOpenThreats: false,
+        providesAuthentication: false,
+        threats: []
+    }
+});
+
+const buildProcess = (name) => ({
+    position: { x: 0, y: 0 },
+    size: { width: 100, height: 100 },
+    attrs: {
+        text: { text: name },
+        body: { stroke: '#333333', strokeWidth: 1.5, strokeDasharray: null }
+    },
+    shape: 'process',
+    zIndex: 0,
+    data: {
+        type: 'tm.Process',
+        name,
+        description: '',
+        outOfScope: false,
+        isTrustBoundary: false,
+        reasonOutOfScope: '',
+        hasOpenThreats: false,
+        handlesCardPayment: false,
+        handlesGoodsOrServices: false,
+        isWebApplication: false,
+        privilegeLevel: '',
+        threats: []
+    }
+});
+
+const buildStore = (name) => ({
+    position: { x: 0, y: 0 },
+    size: { width: 150, height: 75 },
+    attrs: {
+        text: { text: name },
+        topLine: { strokeWidth: 1.5, strokeDasharray: null },
+        bottomLine: { strokeWidth: 1.5, strokeDasharray: null }
+    },
+    shape: 'store',
+    zIndex: 0,
+    data: {
+        type: 'tm.Store',
+        name,
+        description: '',
+        outOfScope: false,
+        isTrustBoundary: false,
+        reasonOutOfScope: '',
+        hasOpenThreats: false,
+        isALog: false,
+        isEncrypted: false,
+        isSigned: false,
+        storesCredentials: false,
+        storesInventory: false,
+        threats: []
+    }
+});
+
+const NODE_BUILDERS = {
+    actor: buildActor,
+    process: buildProcess,
+    store: buildStore
+};
+
+const buildFlow = (name) => ({
+    attrs: {
+        line: {
+            stroke: '#333333',
+            strokeWidth: 1.5,
+            targetMarker: { name: 'block' },
+            sourceMarker: { name: '' },
+            strokeDasharray: null
+        }
+    },
+    shape: 'flow',
+    zIndex: 10,
+    width: 200,
+    height: 100,
+    connector: 'smooth',
+    labels: [
+        {
+            attrs: { labelText: { text: '' } },
+            position: { distance: 0.5 }
+        }
+    ],
+    data: {
+        type: 'tm.Flow',
+        name,
+        description: '',
+        outOfScope: false,
+        isTrustBoundary: false,
+        reasonOutOfScope: '',
+        hasOpenThreats: false,
+        isBidirectional: false,
+        isEncrypted: false,
+        isPublicNetwork: false,
+        protocol: '',
+        threats: [],
+        trustBoundaryIds: []
+    },
+    source: { cell: '', port: '' },
+    target: { cell: '', port: '' },
+    vertices: []
+});
+
+const buildBoundaryBox = (name) => ({
+    position: { x: 0, y: 0 },
+    size: { width: 200, height: 150 },
+    attrs: { label: name },
+    shape: 'trust-boundary-box',
+    // Boundaries sit BEHIND components so they don't intercept clicks
+    // (mirrors the runtime rule in td.vue x6/graph/events.js).
+    zIndex: -1,
+    data: {
+        type: 'tm.BoundaryBox',
+        name,
+        description: '',
+        isTrustBoundary: true,
+        hasOpenThreats: false,
+        crossingFlows: [],
+        containedElements: []
+    }
+});
+
+const buildBoundaryCurve = (name) => ({
+    attrs: { label: name },
+    // Must be the registered edge shape 'trust-boundary-curve' (x6/shapes/index.js);
+    // bare 'trust-boundary' is unregistered and won't render when re-opened.
+    shape: 'trust-boundary-curve',
+    // Boundaries sit BEHIND components (see td.vue x6/graph/events.js).
+    zIndex: -1,
+    connector: 'smooth',
+    data: {
+        type: 'tm.Boundary',
+        name,
+        description: '',
+        isTrustBoundary: true,
+        hasOpenThreats: false,
+        crossingFlows: [],
+        containedElements: []
+    },
+    source: { x: 0, y: 0 },
+    target: { x: 100, y: 100 },
+    vertices: []
+});
+
+// --- helpers ---------------------------------------------------------------
+
+const findDiagram = (model, diagramId) => {
+    const diagram = model.detail.diagrams.find((d) => d.id === diagramId);
+    if (!diagram) {
+        throw new TmcoreError(`Diagram not found: ${diagramId}`);
+    }
+    return diagram;
+};
+
+const findCell = (diagram, cellId) => {
+    const cell = diagram.cells.find((c) => c.id === cellId);
+    if (!cell) {
+        throw new TmcoreError(`Cell not found: ${cellId}`);
+    }
+    return cell;
+};
+
+const isOpen = (threat) => !!threat.status && threat.status.toLowerCase() === 'open';
+
+const refreshOpenThreats = (cell) => {
+    const threats = (cell.data && cell.data.threats) || [];
+    cell.data.hasOpenThreats = threats.some(isOpen);
+};
+
+const setCellName = (cell, name) => {
+    cell.data.name = name;
+    if (cell.attrs && cell.attrs.text) {
+        cell.attrs.text.text = name;
+    } else if (cell.shape === 'actor') {
+        cell.label = name;
+    } else if (cell.attrs && 'label' in cell.attrs) {
+        cell.attrs.label = name;
+    }
+};
+
+// Validate output of a mutating op; throw TmcoreError if the model is invalid.
+const assertValid = (model) => {
+    const { valid, errors } = validateModel(model);
+    if (!valid) {
+        throw new TmcoreError('Operation produced an invalid threat model', errors);
+    }
+    return model;
+};
+
+// --- operations ------------------------------------------------------------
+
+const createDiagram = (model, { title, diagramType }) => {
+    const next = clone(model);
+    const id = next.detail.diagramTop;
+    next.detail.diagrams.push({
+        id,
+        title: title ?? `Diagram ${id}`,
+        description: '',
+        diagramType: diagramType ?? 'STRIDE',
+        version: next.version || '2.0',
+        thumbnail: '',
+        cells: []
+    });
+    next.detail.diagramTop = id + 1;
+    return { model: assertValid(next), result: { diagramId: id } };
+};
+
+const addElement = (model, { diagramId, kind, name, position, description, properties }) => {
+    const builder = NODE_BUILDERS[kind];
+    if (!builder) {
+        throw new TmcoreError(`Unknown element kind: ${kind}`);
+    }
+    const next = clone(model);
+    const diagram = findDiagram(next, diagramId);
+
+    const cell = builder(name || DEFAULT_NAMES[kind]);
+    cell.id = uuidv4();
+    if (position) {
+        cell.position = { x: position.x, y: position.y };
+    }
+    if (description !== undefined) {
+        cell.data.description = description;
+    }
+    if (properties) {
+        Object.assign(cell.data, properties);
+    }
+    diagram.cells.push(cell);
+    return { model: assertValid(next), result: { cellId: cell.id } };
+};
+
+const connectFlow = (model, { diagramId, sourceId, targetId, name, protocol, properties }) => {
+    const next = clone(model);
+    const diagram = findDiagram(next, diagramId);
+    findCell(diagram, sourceId);
+    findCell(diagram, targetId);
+
+    const cell = buildFlow(name || DEFAULT_NAMES.flow);
+    cell.id = uuidv4();
+    cell.source = { cell: sourceId, port: '' };
+    cell.target = { cell: targetId, port: '' };
+    if (protocol !== undefined) {
+        cell.data.protocol = protocol;
+    }
+    if (properties) {
+        Object.assign(cell.data, properties);
+    }
+    diagram.cells.push(cell);
+    return { model: assertValid(next), result: { cellId: cell.id } };
+};
+
+const addBoundary = (model, { diagramId, kind, name, position, size, source, target }) => {
+    if (kind !== 'box' && kind !== 'curve') {
+        throw new TmcoreError(`Unknown boundary kind: ${kind}`);
+    }
+    const next = clone(model);
+    const diagram = findDiagram(next, diagramId);
+
+    const cell = kind === 'box'
+        ? buildBoundaryBox(name || DEFAULT_NAMES.boundary)
+        : buildBoundaryCurve(name || DEFAULT_NAMES.boundary);
+    cell.id = uuidv4();
+
+    if (kind === 'box') {
+        if (position) {
+            cell.position = { x: position.x, y: position.y };
+        }
+        if (size) {
+            cell.size = { width: size.width, height: size.height };
+        }
+    } else {
+        if (source) {
+            cell.source = { x: source.x, y: source.y };
+        }
+        if (target) {
+            cell.target = { x: target.x, y: target.y };
+        }
+    }
+    diagram.cells.push(cell);
+    return { model: assertValid(next), result: { cellId: cell.id } };
+};
+
+const addThreat = (model, { diagramId, cellId, threat = {} }) => {
+    const next = clone(model);
+    const diagram = findDiagram(next, diagramId);
+    const cell = findCell(diagram, cellId);
+
+    const number = next.detail.threatTop + 1;
+    const modelType = threat.modelType || diagram.diagramType;
+    const cellType = cell.data && cell.data.type;
+
+    const created = taxonomy.createTypedThreat({
+        modelType,
+        cellType,
+        number,
+        title: threat.title,
+        type: threat.type,
+        severity: threat.severity,
+        status: threat.status,
+        description: threat.description,
+        mitigation: threat.mitigation
+    });
+
+    if (!cell.data.threats) {
+        cell.data.threats = [];
+    }
+    cell.data.threats.push(created);
+    refreshOpenThreats(cell);
+    next.detail.threatTop = number;
+
+    return { model: assertValid(next), result: { threatId: created.id, number } };
+};
+
+const updateElement = (model, { diagramId, cellId, patch = {} }) => {
+    const next = clone(model);
+    const diagram = findDiagram(next, diagramId);
+    const cell = findCell(diagram, cellId);
+
+    if (patch.name !== undefined) {
+        setCellName(cell, patch.name);
+    }
+    if (patch.description !== undefined) {
+        cell.data.description = patch.description;
+    }
+    if (patch.position) {
+        cell.position = { x: patch.position.x, y: patch.position.y };
+    }
+    if (patch.size) {
+        cell.size = { width: patch.size.width, height: patch.size.height };
+    }
+    if (patch.properties) {
+        Object.assign(cell.data, patch.properties);
+    }
+    return { model: assertValid(next), result: { cellId } };
+};
+
+const removeElement = (model, { diagramId, cellId }) => {
+    const next = clone(model);
+    const diagram = findDiagram(next, diagramId);
+    findCell(diagram, cellId);
+
+    const prunedFlowIds = diagram.cells
+        .filter((c) => c.id !== cellId)
+        .filter((c) => c.source && c.target &&
+            (c.source.cell === cellId || c.target.cell === cellId))
+        .map((c) => c.id);
+
+    const removeSet = new Set([cellId, ...prunedFlowIds]);
+    diagram.cells = diagram.cells.filter((c) => !removeSet.has(c.id));
+
+    return { model: assertValid(next), result: { removed: [cellId, ...prunedFlowIds] } };
+};
+
+const listThreats = (model, { diagramId, filters = {} } = {}) => {
+    const { showOutOfScope = false, showMitigated = false } = filters;
+    const diagrams = diagramId !== undefined
+        ? model.detail.diagrams.filter((d) => d.id === diagramId)
+        : model.detail.diagrams;
+
+    const threats = [];
+    diagrams.forEach((diagram) => {
+        diagram.cells.forEach((cell) => {
+            if (!cell.data || !Array.isArray(cell.data.threats)) {
+                return;
+            }
+            if (!showOutOfScope && cell.data.outOfScope) {
+                return;
+            }
+            cell.data.threats.forEach((threat) => {
+                if (!showMitigated && threat.status &&
+                    threat.status.toLowerCase() === 'mitigated') {
+                    return;
+                }
+                threats.push({ ...threat, cellId: cell.id, diagramId: diagram.id });
+            });
+        });
+    });
+
+    return { model, result: { threats } };
+};
+
+const validateModelOp = (model) => {
+    return { model, result: validateModel(model) };
+};
+
+const getModelSummary = (model) => {
+    const totals = { elements: 0, threats: 0, openThreats: 0, bySeverity: {} };
+    const diagrams = model.detail.diagrams.map((diagram) => {
+        let threatCount = 0;
+        diagram.cells.forEach((cell) => {
+            const threats = (cell.data && cell.data.threats) || [];
+            threatCount += threats.length;
+            threats.forEach((threat) => {
+                if (isOpen(threat)) {
+                    totals.openThreats += 1;
+                }
+                const sev = threat.severity || 'TBD';
+                totals.bySeverity[sev] = (totals.bySeverity[sev] || 0) + 1;
+            });
+        });
+        totals.elements += diagram.cells.length;
+        totals.threats += threatCount;
+        return {
+            id: diagram.id,
+            title: diagram.title,
+            diagramType: diagram.diagramType,
+            elementCount: diagram.cells.length,
+            threatCount
+        };
+    });
+
+    return { model, result: { diagrams, totals } };
+};
+
+export const ops = {
+    createDiagram,
+    addElement,
+    connectFlow,
+    addBoundary,
+    addThreat,
+    updateElement,
+    removeElement,
+    listThreats,
+    validateModel: validateModelOp,
+    getModelSummary
+};
