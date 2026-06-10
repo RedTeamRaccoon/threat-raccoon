@@ -39,12 +39,20 @@ const exchangeGithubToken = async (githubToken) => {
         return hit.token;
     }
 
-    const resp = await axios.get(COPILOT_TOKEN_URL, {
-        headers: {
-            Authorization: `token ${githubToken}`,
-            'User-Agent': 'threat-dragon'
-        }
-    });
+    let resp;
+    try {
+        resp = await axios.get(COPILOT_TOKEN_URL, {
+            headers: {
+                Authorization: `token ${githubToken}`,
+                'User-Agent': 'threat-dragon'
+            }
+        });
+    } catch (e) {
+        // never rethrow the raw axios error: it carries the GitHub token in its
+        // request config, and its message does not say what actually failed
+        const status = e.response && e.response.status;
+        throw new Error(`Copilot token exchange failed${status ? ` (status ${status})` : ''}`);
+    }
 
     const token = resp.data.token;
     const expiresAt = resp.data.expires_at

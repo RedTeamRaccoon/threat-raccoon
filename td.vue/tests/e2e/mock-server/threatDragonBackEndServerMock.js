@@ -116,6 +116,16 @@ const createMockApp = () => {
                 githubEnabled: true, bitbucketEnabled: false, gitlabEnabled: true,
                 googleEnabled: false, localEnabled: true,
                 allowedLocales: ['en'], defaultLocale: 'en',
+                llmEnabled: true, llmAllowUserKey: false,
+                llmDefaultProvider: 'anthropic', llmDefaultModel: 'mock-model',
+                llmProviders: [
+                    {
+                        id: 'anthropic',
+                        label: 'Anthropic Claude',
+                        models: [{ id: 'mock-model', label: 'mock-model' }],
+                        default: 'mock-model',
+                    }
+                ],
             }
         });
     });

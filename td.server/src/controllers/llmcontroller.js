@@ -46,6 +46,24 @@ const write = (res, event) => {
 };
 
 /**
+ * Normalizes an upstream provider error into a safe, user-facing message.
+ * Status-coded errors get a fixed message so raw provider error bodies
+ * (which may echo request details or credentials) are never relayed.
+ * @param {Error} e
+ * @returns {String}
+ */
+const streamErrorMessage = (e) => {
+    const status = e.status || (e.response && e.response.status);
+    if (status === 401 || status === 403) {
+        return `LLM provider rejected the request: authentication failed (${status})`;
+    }
+    if (status === 429) {
+        return 'LLM provider rate limit exceeded (429), please retry later';
+    }
+    return e.message || 'LLM stream error';
+};
+
+/**
  * Pumps a provider's normalized event stream to the response as SSE.
  * @param {Object} provider
  * @param {Object} normalized
@@ -64,8 +82,10 @@ const pipeStream = async (provider, normalized, options, res) => {
         if (options.signal.aborted) {
             logger.debug('LLM stream aborted by client');
         } else {
-            logger.error(e);
-            const message = e.message || 'LLM stream error';
+            // log the normalized message only: raw provider/transport errors can
+            // carry request config (e.g. auth headers) that must not reach the logs
+            const message = streamErrorMessage(e);
+            logger.error(`LLM stream failed: ${message}`);
             write(res, { type: 'error', message, error: { message } });
         }
     } finally {
