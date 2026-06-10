@@ -9,6 +9,71 @@
 [![OWASP Lab](https://img.shields.io/badge/owasp-lab%20project-f7b73c.svg)](https://owasp.org/projects/)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9266/badge)][practices]
 
+# 🦝 Threat Raccoon
+
+An enhanced fork of **[OWASP Threat Dragon](#owasp-threat-dragon)** (the full upstream README is below the divider)
+that adds a built-in **AI assistant** and native **[Model Context Protocol](https://modelcontextprotocol.io)
+(MCP)** control.
+
+Chat with an AI agent, share your application design documents, and collaboratively build a complete threat model
+— actors, processes, stores, data flows, trust boundaries and STRIDE threats — drawn **live on the diagram
+canvas**. The same threat-model operations are exposed as an **MCP server**, so external MCP clients
+(**GitHub Copilot CLI**, Claude Code, OpenCode, Codex, Cursor, Claude Desktop) can drive Threat Dragon directly —
+and in that mode it **needs no AI key of its own; the MCP client brings its model** (ideal if your organisation
+only allows one provider such as GitHub Copilot).
+
+## ⚡ Quick start — Windows 11 with GitHub Copilot
+
+For a clean machine where **GitHub Copilot is the only approved provider**, a one-shot script does everything.
+Clone the repo, then in PowerShell from the repo folder:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\setup-windows.ps1
+```
+
+It installs the prerequisites with `winget` (Node.js LTS, Git, the GitHub Copilot CLI), installs and builds
+Threat Dragon, creates your `.env`, generates a GitHub **Copilot token** (approve a browser code — see
+[`scripts/get-copilot-token.mjs`](scripts/get-copilot-token.mjs)), and registers Threat Dragon with the Copilot
+CLI so you can drive it from `copilot`. Both usage paths keep your design documents on GitHub Copilot only. See
+[`scripts/README.md`](scripts/README.md) for details and the macOS/Linux steps.
+
+## 🛠 Build & run (any platform)
+
+```bash
+git clone https://github.com/RedTeamRaccoon/threat-raccoon.git
+cd threat-raccoon
+npm install            # installs td.server, td.vue and shared/tmcore
+npm start              # macOS/Linux: build + run, then open http://localhost:8080
+                       # Windows: npm run dev:server  and  npm run dev:vue
+```
+
+To expose only the **MCP server** to an external client (no web app needed), build it and point your client at
+the stdio entry `td.server/dist/mcp/stdioEntry.js`:
+
+```bash
+npm run build:server
+```
+
+(Full build/run details, Docker and environment variables are in the upstream sections below.)
+
+## 🤖 Using the AI assistant and MCP
+
+Two deployment modes:
+
+- **Server mode** (web / Docker) — a configured provider key is held server-side; the in-app assistant is gated
+  behind the existing login, and an authenticated HTTP MCP endpoint is served at `/api/mcp`.
+- **Desktop mode** — bring your own API key, stored encrypted locally, with a local stdio MCP server.
+
+In-app assistant providers: **Anthropic, OpenAI, GitHub Copilot, Claude Code (OAuth)**. For the feature guide,
+step-by-step MCP client walkthroughs (**GitHub Copilot CLI**, Claude Code, OpenCode, Codex) and configuration:
+
+- [AI assistant & MCP guide](docs/usage/ai-assistant.md)
+- [Environment configuration](docs/configure/configure.md#ai-assistant-and-mcp-environment)
+- [Copilot onboarding scripts](scripts/README.md)
+
+---
+
 # OWASP Threat Dragon
 
 [OWASP][owasp] [Threat Dragon][project] is a free, open-source, cross-platform threat modeling application.
@@ -63,44 +128,6 @@ You can [download installers](https://github.com/OWASP/threat-dragon/releases) f
 
 End user help is available for both the latest [version 2.x][docs]
 and the previous [version 1.x](https://owasp.org/www-project-threat-dragon/docs-1/).
-
-## AI assistant and native MCP control
-
-This fork adds a built-in AI assistant and native [Model Context Protocol](https://modelcontextprotocol.io) support.
-You can chat with an AI agent, share application design documents, and collaboratively build a complete threat
-model that is drawn **live on the diagram canvas** — actors, processes, stores, data flows, trust boundaries and
-STRIDE threats. The same threat-model operations are exposed as an MCP server, so external MCP clients
-(Claude Code, OpenCode, Codex, Cursor, Claude Desktop, …) can drive Threat Dragon directly — **and in that mode
-Threat Dragon needs no AI key of its own; the MCP client brings its own model** (handy if your organisation only
-allows a specific provider such as GitHub Copilot).
-
-It runs in two modes:
-
-- **Server mode** (web / Docker) — a configured provider key is held server-side and the assistant is gated behind
-  the existing login; an authenticated HTTP MCP endpoint is exposed at `/api/mcp`.
-- **Desktop mode** — bring your own API key, stored encrypted locally, with a local stdio MCP server.
-
-In-app assistant providers: Anthropic, OpenAI, GitHub Copilot and Claude Code (OAuth).
-See the [AI assistant guide](docs/usage/ai-assistant.md) — including step-by-step **Claude Code / GitHub Copilot
-CLI / OpenCode / Codex** MCP walkthroughs — and the
-[environment configuration](docs/configure/configure.md#ai-assistant-and-mcp-environment) for setup.
-
-### Quick start on Windows 11 with GitHub Copilot
-
-For an organisation where **GitHub Copilot is the only approved provider**, a one-shot setup script does
-everything from a clean machine. Clone the repo, then in PowerShell from the repo folder, allow scripts for this
-session and run the setup:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\scripts\setup-windows.ps1
-```
-
-It installs the prerequisites with `winget` (Node.js LTS, Git, the GitHub Copilot CLI), installs and builds
-Threat Dragon, creates your `.env`, generates a GitHub **Copilot token** (a browser code to approve — see
-[`scripts/get-copilot-token.mjs`](scripts/get-copilot-token.mjs)), and registers Threat Dragon with the Copilot
-CLI so you can drive it from `copilot`. Both usage paths keep your design documents on GitHub Copilot only. See
-[`scripts/README.md`](scripts/README.md) for details and the macOS/Linux equivalent.
 
 ### Version 1.x maintenance mode
 
