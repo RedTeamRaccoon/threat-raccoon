@@ -85,6 +85,23 @@ See the [AI assistant guide](docs/usage/ai-assistant.md) — including step-by-s
 CLI / OpenCode / Codex** MCP walkthroughs — and the
 [environment configuration](docs/configure/configure.md#ai-assistant-and-mcp-environment) for setup.
 
+### Quick start on Windows 11 with GitHub Copilot
+
+For an organisation where **GitHub Copilot is the only approved provider**, a one-shot setup script does
+everything from a clean machine. Clone the repo, then in PowerShell from the repo folder, allow scripts for this
+session and run the setup:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\setup-windows.ps1
+```
+
+It installs the prerequisites with `winget` (Node.js LTS, Git, the GitHub Copilot CLI), installs and builds
+Threat Dragon, creates your `.env`, generates a GitHub **Copilot token** (a browser code to approve — see
+[`scripts/get-copilot-token.mjs`](scripts/get-copilot-token.mjs)), and registers Threat Dragon with the Copilot
+CLI so you can drive it from `copilot`. Both usage paths keep your design documents on GitHub Copilot only. See
+[`scripts/README.md`](scripts/README.md) for details and the macOS/Linux equivalent.
+
 ### Version 1.x maintenance mode
 
 Threat Dragon was originally written using AngularJS version 1.x, but this version of Angular reached end of life.
