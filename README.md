@@ -142,9 +142,9 @@ please see the [legacy-v1.x branch](https://github.com/OWASP/threat-dragon/tree/
 
 Install [git](https://git-scm.com/downloads/) and [node.js][node] which includes the node package manager npm
 
-Clone the repository using: `git clone https://github.com/owasp/threat-dragon.git`
+Clone the repository using: `git clone https://github.com/RedTeamRaccoon/threat-raccoon.git`
 
-This downloads the code into a `threat-dragon` directory and the application code is in two sub-folders,
+This downloads the code into a `threat-raccoon` directory and the application code is in two sub-folders,
 one for the back-end application (`td.server`) and one for the front-end (`td.vue`).
 
 Install from the top directory of the project using : `npm install`

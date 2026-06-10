@@ -4,6 +4,11 @@ title: OWASP Threat Dragon Docs
 path: /
 ---
 
+> **Note:** this documentation is for the [Threat Raccoon][repo] fork of OWASP Threat Dragon, which adds a
+> built-in AI assistant and native MCP control. Clone and file issues against the [fork repository][repo], not
+> the upstream OWASP repo. See the fork's [README](https://github.com/RedTeamRaccoon/threat-raccoon#readme) for
+> the Copilot quick-start.
+
 ## Introduction
 
 [Threat Dragon][td] is an open-source threat modelling tool from [OWASP][owasp].
@@ -42,5 +47,5 @@ Threat Dragon: _making threat modeling less threatening_
 [linddun]: https://linddun.org/
 [owasp]: https://owasp.org/
 [plot4ai]: https://plot4.ai/
-[repo]: https://github.com/OWASP/threat-dragon
+[repo]: https://github.com/RedTeamRaccoon/threat-raccoon
 [td]: https://owasp.org/www-project-threat-dragon/

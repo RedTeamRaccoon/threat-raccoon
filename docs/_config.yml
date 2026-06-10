@@ -34,7 +34,7 @@ header_links:
   - tooltip: Visit us on GitHub
     fa_class: fab fa-github
     target: _blank
-    url: https://github.com/OWASP/threat-dragon
+    url: https://github.com/RedTeamRaccoon/threat-raccoon
 
 homeLinks:
   - relative_url: install/installation.html

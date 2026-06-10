@@ -43,8 +43,8 @@ As an alternative to using a released version of the the Threat Dragon desktop a
 `npm` can be used to install and run Threat Dragon locally:
 
 ```sh
-git clone https://github.com/owasp/threat-dragon
-cd threat-dragon
+git clone https://github.com/RedTeamRaccoon/threat-raccoon
+cd threat-raccoon
 npm install
 ```
 

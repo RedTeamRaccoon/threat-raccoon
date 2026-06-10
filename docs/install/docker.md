@@ -40,8 +40,8 @@ Note that this provides the latest source code, rather than a released version:
 
 ```sh
 git init
-git clone https://github.com/owasp/threat-dragon.git
-cd threat-dragon
+git clone https://github.com/RedTeamRaccoon/threat-raccoon.git
+cd threat-raccoon
 ```
 
 Threat Dragon is an open source project and there may be a need to change functionality or documentation,

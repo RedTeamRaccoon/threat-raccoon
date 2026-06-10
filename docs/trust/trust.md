@@ -27,7 +27,7 @@ The automated security scans of Threat Dragon are run on every commit:
 ### Incident Response
 
 Report security vulnerabilities found within Threat Dragon by following the process in
-the [Security Policy](https://github.com/OWASP/threat-dragon/blob/main/security.md).
+the [Security Policy](https://github.com/RedTeamRaccoon/threat-raccoon/blob/main/security.md).
 Every effort will be made to resolve security concerns as they arise.
 
 Threat Dragon is open source software and contains many other open source components.
@@ -35,7 +35,7 @@ Threat Dragon's community strives to stay abreast of security vulnerabilities
 and incidents impacting upstream providers or Threat Dragon itself.
 
 If there is a high impact or high profile incident or vulnerability,
-the Threat Dragon community/maintainers will create a [GitHub Issue](https://github.com/owasp/threat-dragon/issues)
+the Threat Dragon community/maintainers will create a [GitHub Issue](https://github.com/RedTeamRaccoon/threat-raccoon/issues)
 and leave it pinned for as long as it is relevant to the community.
 This issue will have the "security" label, and is intended to serve as a transparency report,
 not necessarily a real-time feed of incident response.
