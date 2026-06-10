@@ -67,6 +67,17 @@ describe('desktop/llm relay', () => {
         expect(events).toEqual([{ type: 'error', message: expect.stringMatching(/No API key/) }]);
     });
 
+    it('surfaces a provider error when the API rejects the key', async () => {
+        const fetchImpl = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 401,
+            text: () => Promise.resolve('{"error":"invalid_api_key"}')
+        });
+        const relay = createLlmRelay({ getKey: () => 'sk-test-fake', fetchImpl });
+        const events = await collect(relay, { provider: 'anthropic', model: 'claude-opus-4-8', messages: [] });
+        expect(events).toEqual([{ type: 'error', message: expect.stringMatching(/Provider error 401.*invalid_api_key/) }]);
+    });
+
     it('normalizes an Anthropic stream', async () => {
         const fetchImpl = jest.fn().mockResolvedValue(sseResponse([
             'event: content_block_start\ndata: {"type":"content_block_start","content_block":{"type":"tool_use","id":"t1","name":"addElement"}}\n\n',
