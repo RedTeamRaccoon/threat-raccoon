@@ -9,7 +9,7 @@ group: Development
 ## Contributing
 
 Pull requests, feature requests, bug reports and feedback of any kind are very welcome, please refer to the page for
-[contributors](https://github.com/OWASP/threat-dragon/blob/main/contributing.md).
+[contributors](https://github.com/RedTeamRaccoon/threat-raccoon/blob/main/contributing.md).
 
 We are trying to keep the test coverage relatively high, so please try to update tests in any PRs.
 There are some [developer notes]({{ '/development/development.html' | relative_url }})
@@ -24,8 +24,8 @@ see the Github documentation on [commit signature verification][signed-commits].
 Clone and install the Threat Dragon repo:
 
 ```sh
-git clone git@github.com:OWASP/threat-dragon.git
-cd threat-dragon
+git clone git@github.com:RedTeamRaccoon/threat-raccoon.git
+cd threat-raccoon
 npm install
 ```
 
@@ -40,7 +40,8 @@ npm run test:vue
 ### Vulnerability disclosure
 
 If you find a vulnerability in this project please let us know ASAP and we will fix it as a priority.
-For secure disclosure, please see the [security policy](https://github.com/OWASP/threat-dragon/blob/main/security.md).
+For secure disclosure, please see the
+[security policy](https://github.com/RedTeamRaccoon/threat-raccoon/blob/main/security.md).
 
 ----
 

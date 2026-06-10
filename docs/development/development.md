@@ -8,7 +8,7 @@ group: Development
 
 ## Getting started
 
-1. Clone the repository: `git clone https://github.com/OWASP/threat-dragon.git`
+1. Clone the repository: `git clone https://github.com/RedTeamRaccoon/threat-raccoon.git`
 2. Configure your [environment]({{ '/configure/configure.html' | relative_url }})
 3. Run `npm run dev:server`
 4. In another terminal, run `npm run dev:vue`

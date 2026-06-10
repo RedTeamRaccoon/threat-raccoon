@@ -64,8 +64,8 @@ As an alternative to using a released version of the the Threat Dragon web appli
 
 ```sh
 git init
-git clone https://github.com/owasp/threat-dragon.git
-cd threat-dragon
+git clone https://github.com/RedTeamRaccoon/threat-raccoon.git
+cd threat-raccoon
 ```
 
 The source tree contains two main sub-folders:
