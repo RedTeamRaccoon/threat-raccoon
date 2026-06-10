@@ -147,3 +147,50 @@ test('operations on a missing diagram throw TmcoreError', () => {
         TmcoreError
     );
 });
+
+test('elements without a position land on distinct grid slots, never stacked', () => {
+    let model = emptyModel();
+    let r = ops.createDiagram(model, { title: 'Grid', diagramType: 'STRIDE' });
+    model = r.model;
+    const diagramId = r.result.diagramId;
+
+    const positions = [];
+    for (let i = 0; i < 6; i += 1) {
+        r = ops.addElement(model, { diagramId, kind: 'process', name: `P${i}` });
+        model = r.model;
+        const cell = model.detail.diagrams[0].cells.find((c) => c.id === r.result.cellId);
+        positions.push(cell.position);
+    }
+
+    // every slot is unique and generously separated
+    for (let a = 0; a < positions.length; a += 1) {
+        for (let b = a + 1; b < positions.length; b += 1) {
+            const apart = Math.abs(positions[a].x - positions[b].x) >= 60 ||
+                Math.abs(positions[a].y - positions[b].y) >= 60;
+            assert.ok(apart, `elements ${a} and ${b} are stacked: ${JSON.stringify(positions[a])}`);
+        }
+    }
+});
+
+test('an explicit position on top of an existing component is nudged clear', () => {
+    let model = emptyModel();
+    let r = ops.createDiagram(model, { title: 'Nudge', diagramType: 'STRIDE' });
+    model = r.model;
+    const diagramId = r.result.diagramId;
+
+    r = ops.addElement(model, { diagramId, kind: 'process', name: 'A', position: { x: 200, y: 200 } });
+    model = r.model;
+
+    // same spot: must move off it
+    r = ops.addElement(model, { diagramId, kind: 'store', name: 'B', position: { x: 205, y: 195 } });
+    model = r.model;
+    const nudged = model.detail.diagrams[0].cells.find((c) => c.id === r.result.cellId);
+    const apart = Math.abs(nudged.position.x - 200) >= 60 || Math.abs(nudged.position.y - 200) >= 60;
+    assert.ok(apart, `still stacked at ${JSON.stringify(nudged.position)}`);
+
+    // a clear explicit position is preserved exactly
+    r = ops.addElement(model, { diagramId, kind: 'actor', name: 'C', position: { x: 700, y: 80 } });
+    model = r.model;
+    const exact = model.detail.diagrams[0].cells.find((c) => c.id === r.result.cellId);
+    assert.deepEqual(exact.position, { x: 700, y: 80 });
+});

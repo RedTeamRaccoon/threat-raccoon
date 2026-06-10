@@ -268,6 +268,49 @@ const createDiagram = (model, { title, diagramType }) => {
     return { model: assertValid(next), result: { diagramId: id } };
 };
 
+// Placement safety net (NOT an auto-layout: existing elements are never moved).
+// Models sometimes omit positions or stack elements; an omitted position gets
+// the next free grid slot, and a position that lands on top of an existing
+// component is nudged diagonally until it is clear.
+const GRID_X = 220;
+const GRID_Y = 160;
+const GRID_ORIGIN = 80;
+const GRID_COLS = 4;
+const COLLISION_DISTANCE = 60;
+
+const COMPONENT_SHAPES = new Set(['actor', 'process', 'store']);
+
+const componentPositions = (diagram) => (diagram.cells || []).
+    filter((c) => COMPONENT_SHAPES.has(c.shape) && c.position).
+    map((c) => c.position);
+
+const collides = (position, occupied) => occupied.some((p) =>
+    Math.abs(p.x - position.x) < COLLISION_DISTANCE && Math.abs(p.y - position.y) < COLLISION_DISTANCE);
+
+const nextFreeGridSlot = (diagram) => {
+    const occupied = componentPositions(diagram);
+    for (let slot = 0; slot < 1000; slot += 1) {
+        const candidate = {
+            x: GRID_ORIGIN + (slot % GRID_COLS) * GRID_X,
+            y: GRID_ORIGIN + Math.floor(slot / GRID_COLS) * GRID_Y
+        };
+        if (!collides(candidate, occupied)) {
+            return candidate;
+        }
+    }
+    return { x: GRID_ORIGIN, y: GRID_ORIGIN };
+};
+
+const nudgeClear = (position, diagram) => {
+    const occupied = componentPositions(diagram);
+    const candidate = { x: position.x, y: position.y };
+    for (let step = 0; step < 20 && collides(candidate, occupied); step += 1) {
+        candidate.x += COLLISION_DISTANCE;
+        candidate.y += COLLISION_DISTANCE;
+    }
+    return candidate;
+};
+
 const addElement = (model, { diagramId, kind, name, position, description, properties }) => {
     const builder = NODE_BUILDERS[kind];
     if (!builder) {
@@ -278,9 +321,9 @@ const addElement = (model, { diagramId, kind, name, position, description, prope
 
     const cell = builder(name || DEFAULT_NAMES[kind]);
     cell.id = uuidv4();
-    if (position) {
-        cell.position = { x: position.x, y: position.y };
-    }
+    cell.position = position && position.x != null
+        ? nudgeClear(position, diagram)
+        : nextFreeGridSlot(diagram);
     if (description !== undefined) {
         cell.data.description = description;
     }
