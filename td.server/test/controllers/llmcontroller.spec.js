@@ -22,7 +22,15 @@ const makeRes = () => {
     return res;
 };
 
-const makeReq = (body, headers = {}) => ({ body, headers, on () {} });
+const makeReq = (body, headers = {}) => {
+    const handlers = {};
+    return {
+        body,
+        headers,
+        on (event, handler) { handlers[event] = handler; },
+        emit (event) { if (handlers[event]) { handlers[event](); } }
+    };
+};
 
 describe('controllers/llmcontroller.js', () => {
     afterEach(() => {
@@ -89,6 +97,124 @@ describe('controllers/llmcontroller.js', () => {
             await llmController.complete(makeReq({}), res);
 
             expect(res.statusCode).to.equal(400);
+        });
+
+        it('returns a 400 for an unknown provider without starting the SSE stream', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+
+            const res = makeRes();
+            await llmController.complete(makeReq({ provider: 'grok' }), res);
+
+            expect(res.statusCode).to.equal(400);
+            expect(res.body.message).to.equal('Bad Request');
+            expect(res.body.details).to.contain('Unknown LLM provider');
+            expect(res.chunks).to.be.empty;
+        });
+
+        it('returns a 400 for an unconfigured provider', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+
+            const res = makeRes();
+            await llmController.complete(makeReq({ provider: 'anthropic' }), res);
+
+            expect(res.statusCode).to.equal(400);
+            expect(res.body.details).to.contain('is not configured');
+            expect(res.chunks).to.be.empty;
+        });
+
+        it('aborts the upstream request when the client disconnects mid-stream', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+            const res = makeRes();
+            let observedSignal = null;
+            const fakeProvider = {
+                createCompletionStream: async function* (_normalized, options) {
+                    observedSignal = options.signal;
+                    yield { type: 'message_start' };
+                    // the client goes away mid-stream: the response fires 'close'
+                    // while it is still writable (writableEnded false).
+                    res.handlers.close();
+                    if (options.signal.aborted) {
+                        const err = new Error('Request was aborted.');
+                        err.name = 'AbortError';
+                        throw err;
+                    }
+                    yield { type: 'text_delta', text: 'should never be sent' };
+                }
+            };
+            sinon.stub(llmProviders, 'get').returns(fakeProvider);
+
+            await llmController.complete(makeReq({ messages: [] }), res);
+
+            expect(observedSignal.aborted).to.be.true;
+            expect(res.chunks).to.deep.equal(['data: {"type":"message_start"}\n\n']);
+            expect(res.writableEnded).to.be.true;
+        });
+
+        it('emits a normalized error event when the provider throws mid-stream', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+            const fakeProvider = {
+                createCompletionStream: async function* () {
+                    yield { type: 'message_start' };
+                    // e.g. the SDK fails to parse a malformed / truncated upstream chunk
+                    throw new SyntaxError('Unexpected end of JSON input');
+                }
+            };
+            sinon.stub(llmProviders, 'get').returns(fakeProvider);
+
+            const res = makeRes();
+            await llmController.complete(makeReq({ messages: [] }), res);
+
+            expect(res.chunks).to.have.length(2);
+            const event = JSON.parse(res.chunks[1].slice('data: '.length));
+            expect(event.type).to.equal('error');
+            expect(event.message).to.equal('Unexpected end of JSON input');
+            expect(res.writableEnded).to.be.true;
+        });
+
+        it('normalizes an upstream 401 without relaying the raw provider error', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+            const fakeProvider = {
+                createCompletionStream: async function* () {
+                    yield { type: 'message_start' };
+                    const err = new Error('401 {"error":{"message":"invalid x-api-key sk-ant-secret123"}}');
+                    err.status = 401;
+                    throw err;
+                }
+            };
+            sinon.stub(llmProviders, 'get').returns(fakeProvider);
+
+            const res = makeRes();
+            await llmController.complete(makeReq({ messages: [] }), res);
+
+            const event = JSON.parse(res.chunks[1].slice('data: '.length));
+            expect(event.type).to.equal('error');
+            expect(event.message).to.contain('401');
+            expect(event.message).to.match(/authentication/iu);
+            expect(event.message).to.not.contain('sk-ant-secret123');
+            expect(res.writableEnded).to.be.true;
+        });
+
+        it('normalizes an upstream 429 to a rate-limit message', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+            const fakeProvider = {
+                createCompletionStream: async function* () {
+                    yield { type: 'message_start' };
+                    const err = new Error('429 {"error":{"message":"tokens per minute exceeded; org=org-secret456"}}');
+                    err.response = { status: 429 };
+                    throw err;
+                }
+            };
+            sinon.stub(llmProviders, 'get').returns(fakeProvider);
+
+            const res = makeRes();
+            await llmController.complete(makeReq({ messages: [] }), res);
+
+            const event = JSON.parse(res.chunks[1].slice('data: '.length));
+            expect(event.type).to.equal('error');
+            expect(event.message).to.match(/rate limit/iu);
+            expect(event.message).to.contain('429');
+            expect(event.message).to.not.contain('org-secret456');
+            expect(res.writableEnded).to.be.true;
         });
 
         it('uses the BYO key path when allowed and header present', async () => {
