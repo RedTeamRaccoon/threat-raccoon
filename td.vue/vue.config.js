@@ -9,8 +9,18 @@ const PORT = process.env.APP_PORT || '8080';
 const appHostname = process.env.APP_HOSTNAME || 'localhost';
 console.log('Server API protocol: ' + serverApiProtocol + ' and port: ' + serverApiPort);
 
-// Check if TLS credentials are available in the environment file
-const hasTlsCredentials = process.env.APP_USE_TLS && process.env.APP_TLS_CERT_PATH && process.env.APP_TLS_KEY_PATH && process.env.APP_HOSTNAME;
+// Check if TLS credentials are available in the environment file.
+// APP_USE_TLS comes from the environment as a STRING, so compare it explicitly —
+// the string "false" is truthy in JavaScript, which would otherwise leave TLS on.
+// Also require the cert/key files to actually exist, so a TLS config pointing at
+// missing/placeholder paths falls back to HTTP instead of crashing the build.
+const tlsRequested = process.env.APP_USE_TLS === 'true' &&
+    process.env.APP_TLS_CERT_PATH && process.env.APP_TLS_KEY_PATH && process.env.APP_HOSTNAME;
+const hasTlsCredentials = Boolean(tlsRequested &&
+    fs.existsSync(process.env.APP_TLS_KEY_PATH) && fs.existsSync(process.env.APP_TLS_CERT_PATH));
+if (tlsRequested && !hasTlsCredentials) {
+    console.warn('APP_USE_TLS=true but the certificate/key files were not found; falling back to HTTP.');
+}
 
 // Shared proxy configuration with request/response logging for visual debug
 const timestamp = () => new Date().toISOString();
