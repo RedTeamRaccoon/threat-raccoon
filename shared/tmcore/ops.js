@@ -152,7 +152,10 @@ const buildFlow = (name) => ({
 const buildBoundaryBox = (name) => ({
     position: { x: 0, y: 0 },
     size: { width: 200, height: 150 },
-    attrs: { label: name },
+    // an OBJECT under the 'label' selector: it merges with the shape's label
+    // attrs (top-left placement); a bare string would replace them and the
+    // label would render centered in the box.
+    attrs: { label: { text: name } },
     shape: 'trust-boundary-box',
     // Boundaries sit BEHIND components so they don't intercept clicks
     // (mirrors the runtime rule in td.vue x6/graph/events.js).
@@ -169,7 +172,14 @@ const buildBoundaryBox = (name) => ({
 });
 
 const buildBoundaryCurve = (name) => ({
-    attrs: { label: name },
+    // Edges render names from the labels API, not attrs (same hand-built shape
+    // as buildFlow: selector 'label', numeric position).
+    labels: [
+        {
+            position: 0.5,
+            attrs: { label: { text: name } }
+        }
+    ],
     // Must be the registered edge shape 'trust-boundary-curve' (x6/shapes/index.js);
     // bare 'trust-boundary' is unregistered and won't render when re-opened.
     shape: 'trust-boundary-curve',
@@ -221,8 +231,13 @@ const setCellName = (cell, name) => {
         cell.attrs.text.text = name;
     } else if (cell.shape === 'actor') {
         cell.label = name;
+    } else if (Array.isArray(cell.labels) && cell.labels[0] && cell.labels[0].attrs && cell.labels[0].attrs.label) {
+        // edges (flows, boundary curves) render names from the labels API
+        cell.labels[0].attrs.label.text = name;
     } else if (cell.attrs && 'label' in cell.attrs) {
-        cell.attrs.label = name;
+        // keep the label an OBJECT: a bare string replaces the shape's label
+        // attrs and re-centers boundary-box labels
+        cell.attrs.label = { ...(typeof cell.attrs.label === 'object' ? cell.attrs.label : {}), text: name };
     }
 };
 

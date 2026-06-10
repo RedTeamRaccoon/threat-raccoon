@@ -41,7 +41,9 @@ const boundary = {
 
 const boundaryBox = {
     attrs: {
-        label: tc('threatmodel.shapes.trustBoundary')
+        // an OBJECT so it merges with the shape's label attrs (top-left
+        // placement); a bare string replaces them and the label re-centers
+        label: { text: tc('threatmodel.shapes.trustBoundary') }
     },
     shape: 'trust-boundary-box',
     zIndex: 10,

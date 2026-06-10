@@ -112,7 +112,9 @@ describe('service/entity/default-properties.js', () => {
         it('defines the trust boundary box entity', () => {
             expect(defaultProperties.defaultEntity('tm.BoundaryBox')).toMatchObject({
                 attrs: {
-                    label: 'Trust Boundary'
+                    // an object that merges with the shape's top-left label
+                    // placement (a bare string would re-center the label)
+                    label: { text: 'Trust Boundary' }
                 },
                 shape: 'trust-boundary-box',
                 zIndex: 10

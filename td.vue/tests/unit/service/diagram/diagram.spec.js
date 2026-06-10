@@ -78,6 +78,27 @@ describe('service/diagram/diagram.js', () => {
             expect(repaired.shape).toBe('trust-boundary-curve');
             expect(repaired.zIndex).toBe(-1);
         });
+
+        it('repairs string label attrs so box labels keep their top-left placement', () => {
+            const withStringLabels = {
+                ...diagramMock,
+                cells: [
+                    { id: 'box', shape: 'trust-boundary-box', attrs: { label: 'Internal Network' } },
+                    { id: 'curve', shape: 'trust-boundary-curve', attrs: { label: 'Internet Edge' }, source: { x: 0, y: 0 }, target: { x: 0, y: 100 } }
+                ]
+            };
+            diagram.edit(null, withStringLabels);
+
+            const box = withStringLabels.cells.find((c) => c.id === 'box');
+            // an object MERGES with the shape's top-left label attrs; the bare
+            // string replaced them, which re-centered the label
+            expect(box.attrs.label).toEqual({ text: 'Internal Network' });
+
+            const curve = withStringLabels.cells.find((c) => c.id === 'curve');
+            // edges only render names from the labels API
+            expect(curve.attrs.label).toBeUndefined();
+            expect(curve.labels).toEqual([{ position: 0.5, attrs: { label: { text: 'Internet Edge' } } }]);
+        });
     });
 
     describe('dispose', () => {

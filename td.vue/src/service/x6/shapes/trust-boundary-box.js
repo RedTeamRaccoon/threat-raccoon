@@ -17,12 +17,13 @@ export const TrustBoundaryBox = Shape.Rect.define({
             fill: 'transparent',
             fillOpacity: 0
         },
+        // label defaults to the top-left corner, inside the dashes
         label: {
             text: '',
-            textAnchor : 'bottom',
-            textVerticalAnchor : 'top',
-            refX: '15%',
-            refY: '12'
+            textAnchor: 'start',
+            textVerticalAnchor: 'top',
+            refX: 12,
+            refY: 8
         }
     }
 });

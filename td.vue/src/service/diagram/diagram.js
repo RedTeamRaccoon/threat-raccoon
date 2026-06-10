@@ -13,9 +13,13 @@ passiveSupport({
 // model opens cleanly:
 //  - repair the unregistered legacy shape 'trust-boundary' to the registered
 //    edge shape 'trust-boundary-curve' (x6 only registers -box / -curve, and a
-//    bare 'trust-boundary' makes fromJSON throw, breaking the whole editor); and
+//    bare 'trust-boundary' makes fromJSON throw, breaking the whole editor);
 //  - send boundaries behind other components (zIndex -1) so they never sit on
-//    top and intercept clicks on the elements inside them.
+//    top and intercept clicks on the elements inside them;
+//  - repair string label attrs from older generators: a bare string under
+//    attrs.label replaces the shape's label attrs, which re-centers box labels
+//    (they default to the top-left corner) — and edges only render names from
+//    the labels API, so a curve's attrs.label string is moved there.
 const normalizeBoundaries = (diagram) => {
     (diagram.cells || []).forEach((cell) => {
         if (cell.shape === 'trust-boundary') {
@@ -23,6 +27,17 @@ const normalizeBoundaries = (diagram) => {
         }
         if (cell.shape === 'trust-boundary-box' || cell.shape === 'trust-boundary-curve') {
             cell.zIndex = -1;
+            if (cell.attrs && typeof cell.attrs.label === 'string') {
+                const text = cell.attrs.label;
+                if (cell.shape === 'trust-boundary-curve') {
+                    delete cell.attrs.label;
+                    if (!Array.isArray(cell.labels) || cell.labels.length === 0) {
+                        cell.labels = [{ position: 0.5, attrs: { label: { text } } }];
+                    }
+                } else {
+                    cell.attrs.label = { text };
+                }
+            }
         }
     });
 };
