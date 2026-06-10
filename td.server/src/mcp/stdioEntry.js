@@ -13,6 +13,7 @@ import fs from 'fs';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 import { createMcpServer } from './server.js';
+import editorContextHelper from '../helpers/editorContext.helper.js';
 
 export const createFileStore = (filePath) => ({
     loadModel: () => JSON.parse(fs.readFileSync(filePath, 'utf8')),
@@ -27,7 +28,11 @@ const main = async () => {
         return;
     }
 
-    const server = await createMcpServer(createFileStore(filePath));
+    // The editor context is written by the HTTP server process; read it from
+    // the shared state file on every call (memory is not shared across processes).
+    const server = await createMcpServer(createFileStore(filePath), {
+        getEditorContext: () => editorContextHelper.readFromFile()
+    });
     const transport = new StdioServerTransport();
     await server.connect(transport);
 };

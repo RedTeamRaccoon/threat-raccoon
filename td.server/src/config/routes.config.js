@@ -4,6 +4,7 @@ import auth from '../controllers/auth.js';
 import bearer from './bearer.config.js';
 import configController from '../controllers/configcontroller';
 import decodeRepoPaths from './decodeRepoPaths.config.js';
+import editorContextController from '../controllers/editorcontextcontroller.js';
 import googleProviderThreatmodelController from '../controllers/googleProviderThreatmodelController.js';
 import healthcheck from '../controllers/healthz.js';
 import homeController from '../controllers/homecontroller.js';
@@ -77,6 +78,9 @@ const routes = (router) => {
     router.post('/api/googleproviderthreatmodel/:folder/create', googleProviderThreatmodelController.create);
     router.put('/api/googleproviderthreatmodel/:file/update', googleProviderThreatmodelController.update);
     router.get('/api/googleproviderthreatmodel/:file/data', googleProviderThreatmodelController.model);
+
+    // Editor context (which model/diagram is open in the browser editor)
+    router.put('/api/editor/context', editorContextController.update);
 
     // AI assistant LLM proxy (SSE)
     router.post('/api/llm/complete', llmController.complete);

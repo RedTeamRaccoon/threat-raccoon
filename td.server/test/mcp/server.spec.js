@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 
 import {
+    EDITOR_CONTEXT_TOOL,
     makeCallToolHandler,
     makeListToolsHandler,
     makeListPromptsHandler,
@@ -19,6 +20,21 @@ describe('mcp/server.js', () => {
             expect(result).to.deep.equal({
                 tools: [{ name: 'addElement', description: 'add an element', inputSchema: { type: 'object' } }]
             });
+        });
+
+        it('does not list getEditorContext when no provider is given', async () => {
+            const tools = [{ name: 'addElement', description: 'add an element', input_schema: { type: 'object' } }];
+            const result = await makeListToolsHandler(tools)();
+            expect(result.tools.map((t) => t.name)).to.not.include('getEditorContext');
+        });
+
+        it('appends getEditorContext when a provider is given', async () => {
+            const tools = [{ name: 'addElement', description: 'add an element', input_schema: { type: 'object' } }];
+            const result = await makeListToolsHandler(tools, () => null)();
+            expect(result.tools.map((t) => t.name)).to.deep.equal(['addElement', 'getEditorContext']);
+            const tool = result.tools.find((t) => t.name === 'getEditorContext');
+            expect(tool.description).to.equal(EDITOR_CONTEXT_TOOL.description);
+            expect(tool.inputSchema).to.deep.equal({ type: 'object', properties: {} });
         });
     });
 
@@ -71,6 +87,45 @@ describe('mcp/server.js', () => {
             expect(result.isError).to.be.true;
             expect(result.content[0].text).to.equal('invalid model');
             expect(modelStore.saveModel.called).to.be.false;
+        });
+
+        it('treats getEditorContext as an unknown tool when no provider is wired', async () => {
+            const handler = makeCallToolHandler({ ops, modelStore });
+            const result = await handler({ params: { name: 'getEditorContext', arguments: {} } });
+
+            expect(result.isError).to.be.true;
+            expect(result.content[0].text).to.equal('Unknown tool: getEditorContext');
+        });
+
+        it('returns the editor context without touching the model store', async () => {
+            const context = { page: 'diagram', diagramId: 2, updatedAt: '2026-06-10T00:00:00.000Z' };
+            const getEditorContext = sinon.stub().resolves(context);
+            const handler = makeCallToolHandler({ ops, modelStore, getEditorContext });
+            const result = await handler({ params: { name: 'getEditorContext', arguments: {} } });
+
+            expect(getEditorContext.calledOnce).to.be.true;
+            expect(modelStore.loadModel.called).to.be.false;
+            expect(modelStore.saveModel.called).to.be.false;
+            expect(result.content[0].text).to.equal(JSON.stringify({ context }));
+        });
+
+        it('returns { context: null } when no editor context has been reported', async () => {
+            const handler = makeCallToolHandler({ ops, modelStore, getEditorContext: () => null });
+            const result = await handler({ params: { name: 'getEditorContext', arguments: {} } });
+
+            expect(result.content[0].text).to.equal(JSON.stringify({ context: null }));
+        });
+
+        it('returns an error result when the editor context provider throws', async () => {
+            const handler = makeCallToolHandler({
+                ops,
+                modelStore,
+                getEditorContext: () => { throw new Error('state file unreadable'); }
+            });
+            const result = await handler({ params: { name: 'getEditorContext', arguments: {} } });
+
+            expect(result.isError).to.be.true;
+            expect(result.content[0].text).to.equal('state file unreadable');
         });
     });
 

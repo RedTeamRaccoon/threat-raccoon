@@ -6,6 +6,7 @@ import auth from '../../src/controllers/auth.js';
 import bearer from '../../src/config/bearer.config.js';
 import configcontroller from "../../src/controllers/configcontroller";
 import decodeRepoPaths from '../../src/config/decodeRepoPaths.config.js';
+import editorContextController from '../../src/controllers/editorcontextcontroller.js';
 import { getMockApp } from '../mocks/express.mocks.js';
 import googleProviderThreatmodelController from '../../src/controllers/googleProviderThreatmodelController.js';
 import healthcheck from '../../src/controllers/healthz.js';
@@ -208,6 +209,15 @@ describe('config/routes.config.js routes', () => {
                 '/api/threatmodel/:organisation/*repo/:branch/:model/update',
                 decodeRepoPaths.middleware,
                 threatmodelController.update
+            );
+        });
+    });
+
+    describe('editor context', () => {
+        it('routes PUT /api/editor/context', () => {
+            expect(mockRouter.put).to.have.been.calledWith(
+                '/api/editor/context',
+                editorContextController.update
             );
         });
     });

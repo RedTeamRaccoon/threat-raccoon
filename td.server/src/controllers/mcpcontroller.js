@@ -5,7 +5,9 @@
  * organisation/repo/branch/model query params), never from MCP tool-call args.
  */
 import { createHttpTransport } from '../mcp/httpTransport.js';
+import { createMcpServer } from '../mcp/server.js';
 import { createRepoStore } from '../mcp/stores/repoStore.js';
+import editorContextHelper from '../helpers/editorContext.helper.js';
 
 const createStore = (req) => createRepoStore({
     accessToken: req.provider.access_token,
@@ -17,7 +19,13 @@ const createStore = (req) => createRepoStore({
     }
 });
 
-const transport = createHttpTransport({ createStore });
+// Expose the editor context to MCP clients: prefer the in-memory value (same
+// process as the PUT /api/editor/context endpoint), fall back to the state file.
+const createServer = (store) => createMcpServer(store, {
+    getEditorContext: () => editorContextHelper.get() || editorContextHelper.readFromFile()
+});
+
+const transport = createHttpTransport({ createStore, createServer });
 
 const handlePost = (req, res) => transport.handlePost(req, res);
 const handleSession = (req, res) => transport.handleSession(req, res);

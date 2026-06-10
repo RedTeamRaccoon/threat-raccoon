@@ -18,6 +18,17 @@ import { loadTmcore } from './loadTmcore.js';
 // Read-only ops never persist — avoids spurious commits/writes on inspection.
 export const READONLY_OPS = new Set(['listThreats', 'validateModel', 'getModelSummary']);
 
+// Listed only when a getEditorContext dependency is wired in (HTTP/stdio entry).
+export const EDITOR_CONTEXT_TOOL = {
+    name: 'getEditorContext',
+    description: 'Reports which threat model / diagram the user currently has open in the ' +
+        'Threat Dragon editor, so "the diagram I am working on" can be resolved without asking. ' +
+        'The result includes an `updatedAt` ISO timestamp — treat stale timestamps with caution, ' +
+        'the user may have moved on since. Returns `{ context: null }` when nothing has been ' +
+        'reported; in that case call getModelSummary and ask the user which diagram they mean.',
+    input_schema: { type: 'object', properties: {} }
+};
+
 // Reusable prompt templates the client surfaces to the user (e.g. slash-commands).
 export const PROMPT_DEFS = [
     {
@@ -58,22 +69,36 @@ export const makeGetPromptHandler = (tmcore) => (request) => {
 
 /**
  * @param {Object[]} toolDefinitions tmcore tool definitions ({name, description, input_schema})
+ * @param {Function} [getEditorContext] when provided, getEditorContext is also listed
  * @returns {Function} ListTools handler
  */
-export const makeListToolsHandler = (toolDefinitions) => () => ({
-    tools: (toolDefinitions || []).map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.input_schema
-    }))
+export const makeListToolsHandler = (toolDefinitions, getEditorContext) => () => ({
+    tools: (toolDefinitions || []).
+        concat(getEditorContext ? [EDITOR_CONTEXT_TOOL] : []).
+        map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.input_schema
+        }))
 });
 
 /**
- * @param {Object} deps { ops, modelStore }
+ * @param {Object} deps { ops, modelStore, getEditorContext? }
  * @returns {Function} CallTool handler
  */
-export const makeCallToolHandler = ({ ops, modelStore }) => async (request) => {
+export const makeCallToolHandler = ({ ops, modelStore, getEditorContext }) => async (request) => {
     const { name, arguments: args } = request.params;
+
+    // Editor context is server state, not model state: never loads/saves the model.
+    if (name === EDITOR_CONTEXT_TOOL.name && getEditorContext) {
+        try {
+            const context = await getEditorContext();
+            return { content: [{ type: 'text', text: JSON.stringify({ context: context || null }) }] };
+        } catch (e) {
+            return { isError: true, content: [{ type: 'text', text: e.message }] };
+        }
+    }
+
     const op = ops[name];
 
     if (typeof op !== 'function') {
@@ -98,12 +123,15 @@ export const makeCallToolHandler = ({ ops, modelStore }) => async (request) => {
 /**
  * Creates an MCP server bound to a model store.
  * @param {Object} modelStore { loadModel(): Promise<model>, saveModel(model): Promise<*> }
- * @param {Object} deps optional { tmcore } injection (defaults to lazy-loading shared/tmcore)
+ * @param {Object} deps optional { tmcore, getEditorContext } injection. tmcore defaults to
+ * lazy-loading shared/tmcore; getEditorContext (sync or async, returns context|null), when
+ * provided, additionally exposes the getEditorContext tool.
  * @returns {Promise<Server>}
  */
 export const createMcpServer = async (modelStore, deps = {}) => {
     const tmcore = deps.tmcore || await loadTmcore();
     const { ops, toolDefinitions, MODELING_GUIDANCE } = tmcore;
+    const { getEditorContext } = deps;
 
     const server = new Server(
         { name: 'threat-dragon', version: '2.6.2' },
@@ -113,8 +141,8 @@ export const createMcpServer = async (modelStore, deps = {}) => {
         { capabilities: { tools: {}, prompts: {} }, instructions: MODELING_GUIDANCE }
     );
 
-    server.setRequestHandler(ListToolsRequestSchema, makeListToolsHandler(toolDefinitions));
-    server.setRequestHandler(CallToolRequestSchema, makeCallToolHandler({ ops, modelStore }));
+    server.setRequestHandler(ListToolsRequestSchema, makeListToolsHandler(toolDefinitions, getEditorContext));
+    server.setRequestHandler(CallToolRequestSchema, makeCallToolHandler({ ops, modelStore, getEditorContext }));
     server.setRequestHandler(ListPromptsRequestSchema, makeListPromptsHandler());
     server.setRequestHandler(GetPromptRequestSchema, makeGetPromptHandler(tmcore));
 
@@ -128,5 +156,6 @@ export default {
     makeListPromptsHandler,
     makeGetPromptHandler,
     PROMPT_DEFS,
-    READONLY_OPS
+    READONLY_OPS,
+    EDITOR_CONTEXT_TOOL
 };

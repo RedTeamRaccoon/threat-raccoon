@@ -6,6 +6,9 @@ import Vuex from 'vuex';
 import MainDashboard from '@/views/MainDashboard.vue';
 import DashboardAction from '@/components/DashboardAction.vue';
 import TdHero from '@/components/Hero.vue';
+import editorContextReporter from '@/service/assistant/editorContextReporter.js';
+
+jest.mock('@/service/assistant/editorContextReporter.js', () => ({ report: jest.fn() }));
 
 describe('MainDashboard.vue', () => {
     let wrapper, localVue, mockStore;
@@ -49,5 +52,9 @@ describe('MainDashboard.vue', () => {
 
     it('has multiple actions', () => {
         expect(wrapper.findAllComponents(DashboardAction).length).toBeGreaterThan(1);
+    });
+
+    it('reports the dashboard editor context', () => {
+        expect(editorContextReporter.report).toHaveBeenCalledWith({ page: 'dashboard' });
     });
 });
