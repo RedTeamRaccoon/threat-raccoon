@@ -105,6 +105,7 @@
 import { mapState } from 'vuex';
 import isElectron from 'is-electron';
 
+import api from '@/service/api/api.js';
 import TdAssistantComposer from '@/components/Assistant/AssistantComposer.vue';
 import TdAssistantMessage from '@/components/Assistant/AssistantMessage.vue';
 import { createBinding } from '@/service/assistant/browserBinding.js';
@@ -129,7 +130,11 @@ export default {
             selectedModel: null,
             isDesktop: isElectron(),
             desktopProviders: [],
-            desktopDefaults: { provider: null, model: null }
+            desktopDefaults: { provider: null, model: null },
+            // provider id -> model ids fetched LIVE from the provider's account
+            // (server mode), so the selector lists what is actually available
+            // instead of only the env-configured default
+            liveModels: {}
         };
     },
     computed: {
@@ -167,11 +172,7 @@ export default {
             return this.aiConfig.providers.map((p) => ({ value: p.id, text: p.label || p.id }));
         },
         modelOptions() {
-            const provider = this.aiConfig.providers.find((p) => p.id === this.selectedProvider);
-            const models = (provider && provider.models) || [];
-            return models.map((m) => (typeof m === 'string'
-                ? { value: m, text: m }
-                : { value: m.id, text: m.label || m.id }));
+            return this.availableModelIds(this.selectedProvider).map((id) => ({ value: id, text: id }));
         },
         hasDiagram() {
             return !!(this.selectedDiagram && this.selectedDiagram.diagramType);
@@ -200,6 +201,7 @@ export default {
             await this.loadDesktopConfig();
         }
         this.initSelection();
+        this.fetchLiveModels(this.selectedProvider);
     },
     methods: {
         async loadDesktopConfig() {
@@ -228,18 +230,48 @@ export default {
             this.$store.dispatch(assistantActions.setProvider, this.selectedProvider);
             this.applyDefaultModel();
         },
+        availableModelIds(providerId) {
+            // live (account-accurate) list when fetched; env-configured fallback
+            const live = this.liveModels[providerId];
+            if (live && live.length) {
+                return live;
+            }
+            const provider = this.aiConfig.providers.find((p) => p.id === providerId);
+            const models = (provider && provider.models) || [];
+            return models.map((m) => (typeof m === 'string' ? m : m.id));
+        },
         applyDefaultModel() {
             const provider = this.aiConfig.providers.find((p) => p.id === this.selectedProvider);
-            const models = (provider && provider.models) || [];
-            const ids = models.map((m) => (typeof m === 'string' ? m : m.id));
+            const ids = this.availableModelIds(this.selectedProvider);
             // Pick the first candidate that the SELECTED provider actually offers,
             // so switching providers never leaves a model from another provider
             // (e.g. the global default) selected — which the server would reject.
+            // With a live list this also walks past a retired configured default.
             const providerDefault = provider && provider.default;
             const candidates = [this.$store.state.assistant.model, providerDefault, this.aiConfig.defaultModel];
             const picked = candidates.find((m) => m && ids.includes(m)) || ids[0] || null;
             this.selectedModel = picked;
             this.$store.dispatch(assistantActions.setModel, picked);
+        },
+        async fetchLiveModels(providerId) {
+            // desktop has no backend; refetch per provider once per panel life
+            if (this.isDesktop || !providerId || this.liveModels[providerId]) {
+                return;
+            }
+            try {
+                const resp = await api.getAsync(`/api/llm/models/${providerId}`);
+                const models = (resp.data && resp.data.models) || [];
+                if (models.length) {
+                    this.liveModels = { ...this.liveModels, [providerId]: models };
+                    // re-validate the selection against the real list (keeps the
+                    // user's pick when still offered, replaces it when retired)
+                    if (providerId === this.selectedProvider) {
+                        this.applyDefaultModel();
+                    }
+                }
+            } catch (e) {
+                console.warn(`Live model list unavailable for ${providerId}, using configured default`, e);
+            }
         },
         onProviderChange(value) {
             this.selectedProvider = value;
@@ -247,6 +279,7 @@ export default {
             this.selectedModel = null;
             this.$store.dispatch(assistantActions.setModel, null);
             this.applyDefaultModel();
+            this.fetchLiveModels(value);
             this.persistDesktopSelection();
         },
         onModelChange(value) {

@@ -246,4 +246,74 @@ describe('controllers/llmcontroller.js', () => {
             });
         });
     });
+
+    describe('models', () => {
+        const makeModelsReq = (provider, headers = {}) => ({ params: { provider }, headers });
+
+        beforeEach(() => {
+            llmController._resetModelsCache();
+        });
+
+        it('returns the provider account model list', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
+            sinon.stub(llmProviders, 'get').returns({
+                name: 'copilot',
+                listModels: sinon.stub().resolves(['gpt-4o', 'gpt-5'])
+            });
+
+            const res = makeRes();
+            await llmController.models(makeModelsReq('copilot'), res);
+
+            expect(res.body.status).to.equal(200);
+            expect(res.body.data).to.deep.equal({ provider: 'copilot', models: ['gpt-4o', 'gpt-5'] });
+        });
+
+        it('caches the list per provider', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
+            const listModels = sinon.stub().resolves(['gpt-4o']);
+            sinon.stub(llmProviders, 'get').returns({ name: 'copilot', listModels });
+
+            await llmController.models(makeModelsReq('copilot'), makeRes());
+            const res = makeRes();
+            await llmController.models(makeModelsReq('copilot'), res);
+
+            expect(listModels.callCount).to.equal(1);
+            expect(res.body.data.models).to.deep.equal(['gpt-4o']);
+        });
+
+        it('rejects an unknown provider with a bad request', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
+            sinon.stub(llmProviders, 'get').throws(new Error('Unknown LLM provider: nope'));
+
+            const res = makeRes();
+            await llmController.models(makeModelsReq('nope'), res);
+
+            expect(res.statusCode).to.equal(400);
+        });
+
+        it('rejects a provider without listModels support', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
+            sinon.stub(llmProviders, 'get').returns({ name: 'legacy' });
+
+            const res = makeRes();
+            await llmController.models(makeModelsReq('legacy'), res);
+
+            expect(res.statusCode).to.equal(400);
+        });
+
+        it('normalizes upstream auth failures so credentials never reach the client', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
+            const upstream = new Error('401 Incorrect API key provided: sk-secret');
+            upstream.status = 401;
+            sinon.stub(llmProviders, 'get').returns({
+                name: 'openai',
+                listModels: sinon.stub().rejects(upstream)
+            });
+
+            const res = makeRes();
+            await llmController.models(makeModelsReq('openai'), res);
+
+            expect(JSON.stringify(res.body)).to.not.contain('sk-secret');
+        });
+    });
 });

@@ -28,4 +28,22 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
     });
 }
 
-export default { name, isConfigured, createCompletionStream };
+/**
+ * Lists the model ids the Anthropic account offers.
+ * @param {Object} options { apiKey } BYO-key override
+ * @returns {Promise<String[]>}
+ */
+const listModels = async (options = {}) => {
+    const apiKey = options.apiKey || env.get().config.LLM_ANTHROPIC_API_KEY;
+    if (!apiKey) {
+        throw new Error('Anthropic provider is not configured');
+    }
+    const client = new Anthropic({ apiKey });
+    const ids = [];
+    for await (const model of client.models.list()) {
+        ids.push(model.id);
+    }
+    return ids;
+};
+
+export default { name, isConfigured, createCompletionStream, listModels };

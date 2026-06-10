@@ -81,6 +81,7 @@ const routes = (router) => {
     // AI assistant LLM proxy (SSE)
     router.post('/api/llm/complete', llmController.complete);
     router.get('/api/llm/providers', llmController.providers);
+    router.get('/api/llm/models/:provider', llmController.models);
 
     // Native MCP server (Streamable HTTP)
     router.post('/api/mcp', mcpController.handlePost);

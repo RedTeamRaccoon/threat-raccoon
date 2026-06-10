@@ -27,4 +27,26 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
     });
 }
 
-export default { name, isConfigured, createCompletionStream };
+// /v1/models mixes chat models with embeddings/audio/image/etc — exclude the
+// families the assistant cannot drive through chat completions
+const NON_CHAT = /(embed|whisper|tts|dall-e|moderation|audio|realtime|image|transcribe|babbage|davinci)/u;
+
+/**
+ * Lists the chat-capable model ids the OpenAI account offers.
+ * @param {Object} options { apiKey } BYO-key override
+ * @returns {Promise<String[]>}
+ */
+const listModels = async (options = {}) => {
+    const apiKey = options.apiKey || env.get().config.LLM_OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error('OpenAI provider is not configured');
+    }
+    const client = new OpenAI({ apiKey });
+    const ids = [];
+    for await (const model of client.models.list()) {
+        ids.push(model.id);
+    }
+    return ids.filter((id) => !NON_CHAT.test(id)).sort();
+};
+
+export default { name, isConfigured, createCompletionStream, listModels };

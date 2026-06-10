@@ -143,4 +143,55 @@ const providers = (req, res) => responseWrapper.sendResponse(() => ({
         env.get().config.LLM_ALLOW_USER_KEY === true
 }), req, res, logger);
 
-export default { complete, providers };
+// Live model lists are slow-changing and rate-limited upstream: cache briefly.
+const MODELS_TTL_MS = 5 * 60 * 1000;
+const modelsCache = new Map(); // provider name -> { models, expiresAt }
+
+/**
+ * Lists the models the provider's account ACTUALLY offers right now, so the
+ * assistant's model selector never offers (or silently defaults to) a model
+ * the provider has retired.
+ */
+const models = (req, res) => {
+    const providerName = req.params.provider || env.get().config.LLM_PROVIDER;
+    const userKey = resolveUserKey(req);
+
+    let provider;
+    try {
+        provider = userKey
+            ? llmProviders.getAllowingUserKey(providerName)
+            : llmProviders.get(providerName);
+    } catch (e) {
+        logger.warn(`LLM provider resolution failed: ${e.message}`);
+        return errors.badRequest(e.message, res, logger);
+    }
+    if (typeof provider.listModels !== 'function') {
+        return errors.badRequest(`Provider ${provider.name} does not support model listing`, res, logger);
+    }
+
+    return responseWrapper.sendResponseAsync(async () => {
+        const hit = modelsCache.get(provider.name);
+        if (!userKey && hit && hit.expiresAt > Date.now()) {
+            return { provider: provider.name, models: hit.models };
+        }
+        let list;
+        try {
+            list = await provider.listModels({ apiKey: userKey });
+        } catch (e) {
+            // normalize like the stream path: upstream errors can echo request
+            // config (auth headers) and must not reach the client or the logs
+            const message = streamErrorMessage(e);
+            logger.error(`LLM model listing failed: ${message}`);
+            throw new Error(message);
+        }
+        if (!userKey) {
+            modelsCache.set(provider.name, { models: list, expiresAt: Date.now() + MODELS_TTL_MS });
+        }
+        return { provider: provider.name, models: list };
+    }, req, res, logger);
+};
+
+// exported for tests
+const _resetModelsCache = () => { modelsCache.clear(); };
+
+export default { complete, providers, models, _resetModelsCache };

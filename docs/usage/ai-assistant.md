@@ -59,12 +59,25 @@ Only enablement flags and provider metadata are exposed through `/api/config` �
 browser**. In a shared deployment the one configured key is used on behalf of all signed-in users; set
 `LLM_ALLOW_USER_KEY=true` if you want individual users to be able to supply their own key instead.
 
+The assistant is gated behind the login JWT. On a **single-user / localhost** install you can also set
+`LLM_LOCAL_SESSION=true` so the local (no-login) session obtains its own token and the assistant works
+without any Git provider — do not enable this on a shared or public server, since anyone who can reach it
+could then use the configured LLM key.
+
+The assistant's model selector lists the models your provider account **actually offers right now**
+(fetched live from the provider and cached for a few minutes). The `LLM_<PROVIDER>_MODEL` value is only
+the preferred default: if the provider retires it, the selector falls back to a model that still exists
+instead of failing every request. When the live list cannot be fetched, the configured default is used.
+
 ### Use it
 
-1. Sign in and open (or create) a threat model and a diagram.
+1. Sign in (or use the local session, see above) and open or create a threat model and a diagram.
 2. Open the **AI assistant** panel from the toggle in the diagram editor toolbar.
-3. Optionally attach one or more application design documents (text or images), or paste them in.
-4. Describe what you want — for example *"Build a STRIDE threat model of this system."*
+3. Optionally attach one or more application design documents, or paste them in. Text, images and **PDFs**
+   are supported: each PDF page's text is extracted (CJK-capable, so e.g. Chinese specs work) and the page
+   is also rendered as an image so vision-capable models can read embedded diagrams.
+4. Describe what you want — for example *"Build a STRIDE threat model of this system."* Write in whatever
+   language you prefer; the assistant replies in the language you use.
 5. Watch the agent build the diagram on the canvas. You can stop it at any time, then continue editing
    manually, ask for changes, or save.
 

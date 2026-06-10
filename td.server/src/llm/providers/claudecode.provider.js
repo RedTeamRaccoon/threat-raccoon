@@ -36,4 +36,25 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
     });
 }
 
-export default { name, isConfigured, createCompletionStream };
+/**
+ * Lists the model ids the Claude account offers (OAuth-authenticated).
+ * @param {Object} options { apiKey } BYO-token override
+ * @returns {Promise<String[]>}
+ */
+const listModels = async (options = {}) => {
+    const authToken = options.apiKey || env.get().config.LLM_CLAUDECODE_OAUTH_TOKEN;
+    if (!authToken) {
+        throw new Error('Claude Code provider is not configured');
+    }
+    const client = new Anthropic({
+        authToken,
+        defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' }
+    });
+    const ids = [];
+    for await (const model of client.models.list()) {
+        ids.push(model.id);
+    }
+    return ids;
+};
+
+export default { name, isConfigured, createCompletionStream, listModels };

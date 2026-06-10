@@ -87,7 +87,51 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
     });
 }
 
+/**
+ * Lists the chat-capable model ids the Copilot account offers.
+ * @param {Object} options { apiKey } BYO-key override
+ * @returns {Promise<String[]>}
+ */
+const listModels = async (options = {}) => {
+    const configured = options.apiKey || env.get().config.LLM_COPILOT_API_KEY;
+    if (!configured) {
+        throw new Error('Copilot provider is not configured');
+    }
+    const bearer = await resolveBearer(configured);
+
+    let resp;
+    try {
+        resp = await axios.get(`${COPILOT_BASE_URL}/models`, {
+            headers: {
+                Authorization: `Bearer ${bearer}`,
+                'Editor-Version': 'ThreatDragon/2',
+                'Copilot-Integration-Id': 'vscode-chat',
+                'User-Agent': 'threat-dragon'
+            }
+        });
+    } catch (e) {
+        // as with the token exchange: never rethrow the raw axios error (it
+        // carries the auth header in its request config)
+        const status = e.response && e.response.status;
+        throw new Error(`Copilot model listing failed${status ? ` (status ${status})` : ''}`);
+    }
+
+    const models = (resp.data && resp.data.data) || [];
+    const chat = models.filter((m) => !m.capabilities || m.capabilities.type === 'chat');
+    // model_picker_enabled marks the models Copilot offers users in chat UIs;
+    // the rest are internal/dated aliases. Keep the configured default while
+    // the account still serves it, so an env-pinned model stays selectable.
+    const ids = new Set(chat.
+        filter((m) => m.model_picker_enabled !== false).
+        map((m) => m.id));
+    const configuredModel = getModel();
+    if (configuredModel && chat.some((m) => m.id === configuredModel)) {
+        ids.add(configuredModel);
+    }
+    return [...ids];
+};
+
 // exported for tests
 const _resetTokenCache = () => { tokenCache.clear(); };
 
-export default { name, isConfigured, createCompletionStream, _resetTokenCache };
+export default { name, isConfigured, createCompletionStream, listModels, _resetTokenCache };
