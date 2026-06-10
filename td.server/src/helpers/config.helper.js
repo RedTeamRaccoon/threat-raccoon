@@ -163,6 +163,7 @@ const buildLlmFlags = (config) => {
     return {
         llmEnabled: isTrue(config.LLM_ENABLED),
         llmAllowUserKey: isTrue(config.LLM_ALLOW_USER_KEY),
+        llmLocalSession: isTrue(config.LLM_LOCAL_SESSION),
         mcpHttpEnabled: isTrue(config.MCP_HTTP_ENABLED),
         llmDefaultProvider,
         llmDefaultModel: llmDefaultProvider ? defaultModelFor(config, llmDefaultProvider) : null,

@@ -68,6 +68,34 @@ describe('store/modules/auth.js', () => {
             authModule.actions[AUTH_SET_LOCAL](mocks);
             expect(mocks.commit).toHaveBeenCalledWith(AUTH_SET_LOCAL);
         });
+
+        describe('set local with llmLocalSession enabled', () => {
+            beforeEach(() => {
+                mocks.rootState.config = { config: { llmLocalSession: true } };
+            });
+
+            it('fetches a JWT from the local login endpoint', async () => {
+                loginApi.loginAsync = jest.fn().mockResolvedValue({ data: apiResp });
+                await authModule.actions[AUTH_SET_LOCAL](mocks);
+                expect(loginApi.loginAsync).toHaveBeenCalledWith('local');
+                expect(mocks.commit).toHaveBeenCalledWith(AUTH_SET_JWT, apiResp);
+            });
+
+            it('falls back to the plain local session when the JWT fetch fails', async () => {
+                console.warn = jest.fn();
+                loginApi.loginAsync = jest.fn().mockRejectedValue(new Error('whoops!'));
+                await authModule.actions[AUTH_SET_LOCAL](mocks);
+                expect(mocks.commit).toHaveBeenCalledWith(AUTH_SET_LOCAL);
+            });
+        });
+
+        it('commits set local without a JWT when llmLocalSession is disabled', async () => {
+            mocks.rootState.config = { config: { llmLocalSession: false } };
+            loginApi.loginAsync = jest.fn();
+            await authModule.actions[AUTH_SET_LOCAL](mocks);
+            expect(loginApi.loginAsync).not.toHaveBeenCalled();
+            expect(mocks.commit).toHaveBeenCalledWith(AUTH_SET_LOCAL);
+        });
         
         describe('logout', () => {
 

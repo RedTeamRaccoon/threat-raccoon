@@ -8,8 +8,37 @@ import tokenRepo from '../repositories/token.js';
 
 const logger = loggerHelper.get('controllers/auth.js');
 
+const isTrue = (value) => value === true || value === 'true';
+
+/**
+ * Mints a JWT for the local (no Git provider) session so the in-app assistant
+ * and other JWT-gated routes work without an OAuth login. Gated behind
+ * LLM_LOCAL_SESSION because the JWT spends the server's configured LLM key:
+ * only enable it on single-user/localhost deployments.
+ */
+const localLogin = (req, res) => {
+    if (!isTrue(env.get().config.LLM_LOCAL_SESSION)) {
+        logger.audit('Local session login rejected: LLM_LOCAL_SESSION is not enabled');
+        return errors.unauthorized(res, logger);
+    }
+
+    return responseWrapper.sendResponseAsync(async () => {
+        const user = { username: 'local-user' };
+        const { accessToken, refreshToken } = await jwtHelper.createAsync('local', {}, user);
+        tokenRepo.add(refreshToken);
+        return {
+            accessToken,
+            refreshToken
+        };
+    }, req, res, logger);
+};
+
 const login = (req, res) => {
     logger.debug(`API login request: ${logger.transformToString(req)}`);
+
+    if (req.params.provider === 'local') {
+        return localLogin(req, res);
+    }
 
     try {
         const provider = providers.get(req.params.provider);

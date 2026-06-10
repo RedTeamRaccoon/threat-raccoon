@@ -59,6 +59,50 @@ describe('controllers/auth.js', () => {
                 expect(errors.badRequest).to.have.been.calledOnce;
             });
         });
+
+        describe('with the local provider', () => {
+            const tokens = { accessToken: 'jwt.access.token', refreshToken: 'jwt.refresh.token' };
+
+            beforeEach(() => {
+                mockRequest.params.provider = 'local';
+                sinon.stub(jwtHelper, 'createAsync').resolves(tokens);
+                sinon.stub(errors, 'unauthorized');
+            });
+
+            describe('when LLM_LOCAL_SESSION is enabled', () => {
+                beforeEach(async () => {
+                    sinon.stub(env, 'get').returns({ config: { LLM_LOCAL_SESSION: 'true' } });
+                    await auth.login(mockRequest, mockResponse);
+                });
+
+                it('mints a JWT for the local user', () => {
+                    expect(jwtHelper.createAsync).to.have.been.calledWith(
+                        'local',
+                        {},
+                        { username: 'local-user' }
+                    );
+                });
+
+                it('stores the refresh token', () => {
+                    expect(tokenRepo.add).to.have.been.calledWith(tokens.refreshToken);
+                });
+            });
+
+            describe('when LLM_LOCAL_SESSION is not enabled', () => {
+                beforeEach(() => {
+                    sinon.stub(env, 'get').returns({ config: {} });
+                    auth.login(mockRequest, mockResponse);
+                });
+
+                it('returns unauthorized', () => {
+                    expect(errors.unauthorized).to.have.been.calledOnce;
+                });
+
+                it('does not mint a JWT', () => {
+                    expect(jwtHelper.createAsync).not.to.have.been.called;
+                });
+            });
+        });
     });
 
     describe('logout', () => {

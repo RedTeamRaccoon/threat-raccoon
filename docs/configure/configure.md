@@ -235,12 +235,18 @@ for Docker / Kubernetes secrets.
 | `LLM_CLAUDECODE_OAUTH_TOKEN` | Claude Code OAuth bearer token | |
 | `LLM_CLAUDECODE_MODEL` | Claude Code model id | `claude-opus-4-8` |
 | `LLM_ALLOW_USER_KEY` | Allow a signed-in user to override the shared key with their own via the `X-LLM-User-Key` header | `false` |
+| `LLM_LOCAL_SESSION` | Let the local (no-login) session mint a JWT via `/api/login/local`, so the in-app assistant works without a Git provider login. Anyone who can reach the server can then use the configured LLM key: only enable on single-user / localhost deployments | `false` |
 | `MCP_HTTP_ENABLED` | Enables the authenticated HTTP MCP endpoint (`POST`/`GET` `/api/mcp`) | `false` |
 | `MCP_ALLOWED_ORIGINS` | Comma-separated allow-list of browser `Origin`s for the MCP endpoint (DNS-rebinding protection). Empty allows non-browser MCP clients; authentication is always required | |
 | `MCP_ALLOWED_HOSTS` | Comma-separated allow-list of `Host` headers for the MCP endpoint | |
 
 Only providers that have a configured key appear in the assistant's provider selector.
-The assistant and MCP routes are protected by the same login as the rest of the API.
+The assistant and MCP routes are protected by the same login as the rest of the API; with
+`LLM_LOCAL_SESSION=true` the local session obtains its own token for those routes.
+
+The assistant accepts attached design documents, including PDFs: the text of each page is
+extracted (with CJK support, so e.g. Chinese documents work) and each page is also rendered
+as an image so vision-capable models can read embedded diagrams.
 
 ### Remote repository environments
 

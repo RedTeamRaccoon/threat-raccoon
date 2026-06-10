@@ -32,11 +32,17 @@ describe('config.helper.js LLM/MCP flags', () => {
         expect(serialized).to.not.contain('sk-secret');
     });
 
+    it('exposes llmLocalSession when LLM_LOCAL_SESSION is enabled', () => {
+        const { value } = buildConfig({ LLM_LOCAL_SESSION: 'true', LOCALES_ALLOWED: '[]' });
+        expect(value.llmLocalSession).to.be.true;
+    });
+
     it('defaults flags off and providers empty when nothing is configured', () => {
         const { value } = buildConfig({ LOCALES_ALLOWED: '[]' });
         expect(value.llmEnabled).to.be.false;
         expect(value.mcpHttpEnabled).to.be.false;
         expect(value.llmAllowUserKey).to.be.false;
+        expect(value.llmLocalSession).to.be.false;
         expect(value.llmDefaultProvider).to.be.null;
         expect(value.llmDefaultModel).to.be.null;
         expect(value.llmProviders).to.deep.equal([]);

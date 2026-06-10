@@ -294,6 +294,7 @@ describe('config.helper.js', () => {
                 googleEnabled: false,
                 llmEnabled: false,
                 llmAllowUserKey: false,
+                llmLocalSession: false,
                 mcpHttpEnabled: false,
                 llmDefaultProvider: null,
                 llmDefaultModel: null,

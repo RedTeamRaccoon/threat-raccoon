@@ -6,9 +6,16 @@ import loggerHelper from './logger.helper.js';
 
 const logger = loggerHelper.get('helpers/encryption.helper.js');
 
-const inputEncoding = 'ascii';
+// Legacy ciphertexts encoded the random IV (and plaintext) as 'ascii', which is
+// lossy for bytes >= 0x80 on current Node ('ascii' masks the high bit), so
+// decryption failed with 'bad decrypt' for ~every random IV. New ciphertexts
+// carry ivEncoding: 'base64' and use utf8 plaintext; old ones (no ivEncoding)
+// are still decrypted with the legacy encodings.
+const legacyTextEncoding = 'ascii';
+const textEncoding = 'utf8';
 const outputEncoding = 'base64';
 const keyEncoding = 'ascii';
+const ivEncoding = 'base64';
 const algorithm = 'aes256';
 
 /**
@@ -62,11 +69,12 @@ const getKeyById = (id) => {
  */
 const encryptData = (plainText, key, iv) => {
     const encryptor = crypto.createCipheriv(algorithm, key.value, iv);
-    let cipherText = encryptor.update(plainText, inputEncoding, outputEncoding);
+    let cipherText = encryptor.update(plainText, textEncoding, outputEncoding);
     cipherText += encryptor.final(outputEncoding);
     return {
         keyId: key.id,
-        iv: iv.toString(keyEncoding),
+        iv: iv.toString(ivEncoding),
+        ivEncoding,
         data: cipherText
     };
 };
@@ -75,13 +83,14 @@ const encryptData = (plainText, key, iv) => {
  * Decrypts a ciphertext using the given key and initialization vector
  * @param {String} cipherText
  * @param {Object} key
- * @param {String} iv
+ * @param {Buffer} iv
+ * @param {String} encoding plaintext encoding
  * @returns {String}
  */
-const decryptData = (cipherText, key, iv) => {
+const decryptData = (cipherText, key, iv, encoding) => {
     const decryptor = crypto.createDecipheriv(algorithm, key.value, iv);
-    const plainText = decryptor.update(cipherText, outputEncoding, inputEncoding);
-    return `${plainText}${decryptor.final(inputEncoding)}`;
+    const plainText = decryptor.update(cipherText, outputEncoding, encoding);
+    return `${plainText}${decryptor.final(encoding)}`;
 };
 
 /**
@@ -106,11 +115,13 @@ const encryptPromise = (plainText) => {
  * @returns {String}
  */
 const decrypt = (encryptedData) => {
-    const iv = Buffer.from(encryptedData.iv, keyEncoding);
+    // ciphertexts without an ivEncoding marker predate the base64 IV format
+    const isLegacy = !encryptedData.ivEncoding;
+    const iv = Buffer.from(encryptedData.iv, isLegacy ? legacyTextEncoding : encryptedData.ivEncoding);
     const key = getKeyById(encryptedData.keyId);
     logger.debug('Decrypting ciphertext');
 
-    return decryptData(encryptedData.data, key, iv);
+    return decryptData(encryptedData.data, key, iv, isLegacy ? legacyTextEncoding : textEncoding);
 };
 
 export default {

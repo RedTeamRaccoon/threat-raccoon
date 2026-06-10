@@ -41,7 +41,8 @@ export default {
             await this.$store.dispatch(PROVIDER_SELECTED, this.provider.key);
 
             if (this.provider.key === providerNames.local || this.provider.key === providerNames.desktop) {
-                this.$store.dispatch(AUTH_SET_LOCAL);
+                // await: the local session may mint a JWT via the server first
+                await this.$store.dispatch(AUTH_SET_LOCAL);
                 return this.$router.push('/dashboard');
             }
           
