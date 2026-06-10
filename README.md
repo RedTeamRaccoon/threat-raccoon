@@ -34,9 +34,28 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 It installs the prerequisites with `winget` (Node.js LTS, Git, the GitHub Copilot CLI), installs and builds
 Threat Dragon, creates your `.env`, generates a GitHub **Copilot token** (approve a browser code — see
-[`scripts/get-copilot-token.mjs`](scripts/get-copilot-token.mjs)), and registers Threat Dragon with the Copilot
-CLI so you can drive it from `copilot`. Both usage paths keep your design documents on GitHub Copilot only. See
+[`scripts/get-copilot-token.mjs`](scripts/get-copilot-token.mjs)), registers Threat Dragon with the Copilot
+CLI so you can drive it from `copilot`, and finishes by **starting Threat Dragon and opening it in your
+browser**. Both usage paths keep your design documents on GitHub Copilot only. See
 [`scripts/README.md`](scripts/README.md) for details and the macOS/Linux steps.
+
+**Every day after that**, one command starts everything (and is safe to re-run any time):
+
+```powershell
+.\scripts\start-threatdragon.ps1
+```
+
+It checks your Copilot token (refreshing it if expired), builds anything missing, starts Threat Dragon and
+opens your browser once it's healthy. Then either:
+
+- pick **Local Session** in Threat Dragon, open a diagram and use the built-in **AI Assistant** panel — attach
+  your design docs (PDFs work: the text is extracted, including Chinese, and each page is shown to the model
+  as an image so it can read the diagrams) and ask it to build the threat model live on the canvas, or
+- ask Copilot CLI to do it — run `copilot` and say *"Read my-design.pdf and build the threat model"*; it
+  writes `threat-model.json`, which you open in Threat Dragon (**Local Session → Open**) to view and edit, or
+- work in the Threat Dragon editor directly.
+
+Chat in English or Chinese — the assistant answers in the language you use.
 
 ## 🛠 Build & run (any platform)
 
@@ -45,7 +64,8 @@ git clone https://github.com/RedTeamRaccoon/threat-raccoon.git
 cd threat-raccoon
 npm install            # installs td.server, td.vue and shared/tmcore
 npm start              # macOS/Linux: build + run, then open http://localhost:8080
-                       # Windows: npm run dev:server  and  npm run dev:vue
+                       # Windows: use .\scripts\start-threatdragon.ps1 instead
+                       #          (npm start is currently broken under cmd.exe)
 ```
 
 To expose only the **MCP server** to an external client (no web app needed), build it and point your client at

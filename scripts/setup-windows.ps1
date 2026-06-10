@@ -93,6 +93,18 @@ try {
     Write-Warn2 "A browser code will be shown - approve it to link your Copilot subscription."
     node (Join-Path $repoRoot 'scripts\get-copilot-token.mjs')
 
+    # Let the local (no-login) session use the in-app assistant. This setup
+    # targets a single-user machine; on a shared/public server leave it false
+    # (anyone reaching the server could use the configured LLM key).
+    $envRaw = Get-Content $envPath -Raw
+    if ($envRaw -match 'LLM_LOCAL_SESSION=') {
+        $envRaw = $envRaw -replace 'LLM_LOCAL_SESSION=\S*', 'LLM_LOCAL_SESSION=true'
+        Set-Content -Path $envPath -Value $envRaw -Encoding UTF8 -NoNewline
+    } else {
+        Add-Content -Path $envPath -Value "`nLLM_LOCAL_SESSION=true" -Encoding UTF8
+    }
+    Write-Ok "Enabled the in-app assistant for the local session (LLM_LOCAL_SESSION=true)."
+
     # 5. Wire the Copilot CLI to Threat Dragon's MCP server ----------------
     $modelPath = "$repoRoot\threat-model.json"
     if (-not (Test-Path $modelPath)) {
@@ -141,12 +153,16 @@ Write-Host @"
      The model is written to: $modelPath
      Open that file in Threat Dragon to view it.
 
-  B) In-app assistant (chat panel inside Threat Dragon):
-       npm start            # builds + runs Threat Dragon (or: npm run dev:server / npm run dev:vue)
-     Then browse to http://localhost:8080  (sign in via a configured Git provider;
-     the in-app assistant requires a provider login, see the README).
+  B) The Threat Dragon app (view/edit models; in-app chat panel needs a Git provider login):
+       .\scripts\start-threatdragon.ps1
+     One command: builds anything missing, checks the token, starts the app and
+     opens your browser. (Avoid 'npm start' on Windows - it is currently broken.)
 
   Your Copilot token is stored in .env (LLM_COPILOT_API_KEY). Re-run any time:
        node scripts\get-copilot-token.mjs
 
 "@ -ForegroundColor White
+
+# 7. Launch ------------------------------------------------------------------
+Write-Step "Starting Threat Dragon..."
+& (Join-Path $repoRoot 'scripts\start-threatdragon.ps1')
