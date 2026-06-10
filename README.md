@@ -105,6 +105,10 @@ one for the back-end application (`td.server`) and one for the front-end (`td.vu
 
 Install from the top directory of the project using : `npm install`
 
+On **Windows 11**, run the commands in PowerShell or Command Prompt (install [Node.js][node] 20 LTS+ and
+[Git for Windows](https://git-scm.com/download/win)). If `npm install` fails while building a native module
+(node-gyp), install the Visual Studio Build Tools "Desktop development with C++" workload and re-run `npm install`.
+
 ### Environment variables for web application
 
 The web application variant of Threat Dragon requires some environment variables;

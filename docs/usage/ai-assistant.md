@@ -101,9 +101,18 @@ The runnable entry is then `node td.server/dist/mcp/stdioEntry.js <model.json>`.
 local threat-model JSON file, given as the first argument (or via the `TD_MODEL_FILE` env var). Use absolute
 paths, and open that file in Threat Dragon to view the result.
 
+> **Windows 11.** The commands above are identical in PowerShell or Command Prompt — install
+> [Node.js](https://nodejs.org) 20 LTS+ and [Git for Windows](https://git-scm.com/download/win) first. The built
+> entry is `node td.server\dist\mcp\stdioEntry.js <model.json>`. If `npm install` fails building a native module
+> (node-gyp), install the Visual Studio Build Tools "Desktop development with C++" workload and re-run.
+
 ### Connect a client
 
 Below, replace `/abs/td` with the absolute path to your cloned repo and `/abs/model.json` with your model file.
+On **Windows 11** use a full path — the simplest is **forward slashes**, which `node` accepts and which need no
+escaping in JSON (e.g. `C:/Users/you/threat-raccoon/td.server/dist/mcp/stdioEntry.js` and
+`C:/Users/you/threat-models/my-model.json`). If you prefer backslashes, escape them in JSON (`C:\\Users\\you\\…`);
+TOML and the CLI forms accept either.
 
 #### Claude Code
 
