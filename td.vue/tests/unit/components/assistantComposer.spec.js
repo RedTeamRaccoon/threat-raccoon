@@ -4,9 +4,9 @@ import { mount, createLocalVue } from '@vue/test-utils';
 import TdAssistantComposer from '@/components/Assistant/AssistantComposer.vue';
 
 describe('components/Assistant/AssistantComposer.vue', () => {
-    const mountComposer = (propsData = { busy: false, canSend: true }) => {
+    const mountComposer = (propsData = { busy: false, canSend: true }, attachments = []) => {
         const store = {
-            state: { assistant: { attachments: [] } },
+            state: { assistant: { attachments } },
             dispatch: jest.fn()
         };
         const localVue = createLocalVue();
@@ -50,5 +50,44 @@ describe('components/Assistant/AssistantComposer.vue', () => {
         await wrapper.setData({ text: 'queued' });
         wrapper.vm.submit();
         expect(wrapper.emitted('send')).toBeUndefined();
+    });
+
+    it('does not send while a PDF is still being read', async () => {
+        const { wrapper } = mountComposer();
+        await wrapper.setData({ text: 'go', pdfBusy: true });
+        wrapper.vm.submit();
+        expect(wrapper.emitted('send')).toBeUndefined();
+    });
+
+    describe('attachment chips', () => {
+        const pdfParts = [
+            { kind: 'text', name: 'spec.pdf', group: 'spec.pdf', data: 'text' },
+            { kind: 'image', name: 'spec.pdf (page 1)', group: 'spec.pdf', data: 'a' },
+            { kind: 'image', name: 'spec.pdf (page 2)', group: 'spec.pdf', data: 'b' }
+        ];
+
+        it('collapses a multi-part PDF into one chip with a page count', () => {
+            const { wrapper } = mountComposer(undefined, [
+                { kind: 'text', name: 'notes.md', data: 'n' },
+                ...pdfParts
+            ]);
+            const chips = wrapper.vm.attachmentChips;
+            expect(chips).toHaveLength(2);
+            expect(chips[0].label).toBe('notes.md');
+            expect(chips[1].icon).toBe('file-pdf');
+            expect(chips[1].indices).toEqual([1, 2, 3]);
+            // $t mock returns the key, so the count shows via the key here
+            expect(chips[1].label).toContain('spec.pdf');
+        });
+
+        it('removes every part of a grouped chip, highest index first', () => {
+            const { wrapper, store } = mountComposer(undefined, [
+                { kind: 'text', name: 'notes.md', data: 'n' },
+                ...pdfParts
+            ]);
+            wrapper.vm.removeChip(wrapper.vm.attachmentChips[1]);
+            const removals = store.dispatch.mock.calls.filter(([action]) => action === 'ASSISTANT_REMOVE_ATTACHMENT');
+            expect(removals.map(([, idx]) => idx)).toEqual([3, 2, 1]);
+        });
     });
 });

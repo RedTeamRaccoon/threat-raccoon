@@ -75,9 +75,12 @@ describe('service/assistant/pdfAttachments.js', () => {
             kind: 'image',
             mediaType: 'image/jpeg',
             name: 'design-spec.pdf (page 1)',
+            group: 'design-spec.pdf',
             data: 'data:image/jpeg;base64,RkFLRQ=='
         });
         expect(img2.name).toBe('design-spec.pdf (page 2)');
+        // every part carries the same group so the composer shows ONE chip
+        expect(new Set(attachments.map((a) => a.group))).toEqual(new Set(['design-spec.pdf']));
     });
 
     it('requests CJK cMaps so non-latin text extracts correctly', async () => {

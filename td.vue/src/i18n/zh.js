@@ -532,6 +532,7 @@ const messages = {
         unavailable: '此实例未启用 AI 助手。',
         empty: '描述你的系统或分享设计文档，然后让我为你构建威胁模型。',
         noDiagram: '打开一个图表，开始协作构建威胁模型。',
+        working: '助手正在处理…',
         roles: {
             you: '你',
             assistant: '助手'
@@ -547,7 +548,9 @@ const messages = {
             image: '图片',
             tooLarge: '附件超出大小限制。请先移除部分附件再发送。',
             pdfFailed: '无法读取附加的 PDF。请尝试重新导出，或直接粘贴文本。',
-            pdfTruncated: 'PDF 较长，只附加了前 20 页。'
+            pdfTruncated: 'PDF 较长，只附加了前 20 页。',
+            reading: '正在读取 PDF…',
+            pages: '{count} 页'
         },
         settingsModal: {
             intro: '使用你自己的 API 密钥。密钥在本设备上加密存储，除调用所选提供方外不会离开本设备。',

@@ -35,7 +35,8 @@ const MODEL_MODE_CONTEXT = [
     'You operate on the WHOLE threat model. Call getModelSummary first to list the diagrams and their ids.',
     'Tools that work inside a diagram require a diagramId argument. createDiagram adds a new data-flow diagram to the model.',
     'Changes do not animate on this page — the user opens a diagram to see them.',
-    'This mode is well suited to bulk work across multiple diagrams (for example creating several diagrams, or adding threats throughout the model).'
+    'This mode is well suited to bulk work across multiple diagrams (for example creating several diagrams, or adding threats throughout the model).',
+    'When the user asks you to build or review across the model, carry the work through EVERY relevant diagram in one run — do not stop between diagrams to ask whether to continue. Only pause when you genuinely need information you cannot infer.'
 ].join(' ');
 
 const stripDataUrl = (data) => (typeof data === 'string' && data.includes(',') ? data.slice(data.indexOf(',') + 1) : data);

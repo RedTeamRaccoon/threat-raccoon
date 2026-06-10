@@ -65,6 +65,12 @@
                     <div class="td-assistant-text">{{ streamingText }}</div>
                 </div>
 
+                <!-- the gap between Send and the first streamed token (or between
+                     agent turns) otherwise shows NOTHING moving -->
+                <div v-if="busy && !streamingText" class="td-assistant-working">
+                    <b-spinner small class="mr-1" />{{ $t('assistant.working') }}
+                </div>
+
                 <div v-if="pendingToolCalls.length" class="td-assistant-activity">
                     <div
                         v-for="call in pendingToolCalls"
@@ -403,6 +409,11 @@ export default {
 .td-assistant-activity {
     margin-top: 6px;
     font-size: 12px;
+}
+.td-assistant-working {
+    color: #888;
+    font-size: 12px;
+    margin-top: 6px;
 }
 .td-assistant-activity-error {
     color: #b00;

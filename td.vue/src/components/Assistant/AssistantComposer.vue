@@ -1,16 +1,20 @@
 <template>
     <div class="td-assistant-composer">
-        <div v-if="attachments.length" class="td-assistant-chips">
+        <div v-if="attachmentChips.length" class="td-assistant-chips">
             <b-badge
-                v-for="(att, idx) in attachments"
+                v-for="(chip, idx) in attachmentChips"
                 :key="idx"
                 variant="info"
                 class="mr-1 mb-1 td-assistant-chip"
             >
-                <font-awesome-icon :icon="att.kind === 'image' ? 'image' : 'file-alt'" class="mr-1" />
-                {{ att.name }}
-                <span class="td-assistant-chip-remove" @click="removeAttachment(idx)">&times;</span>
+                <font-awesome-icon :icon="chip.icon" class="mr-1" />
+                {{ chip.label }}
+                <span class="td-assistant-chip-remove" @click="removeChip(chip)">&times;</span>
             </b-badge>
+        </div>
+
+        <div v-if="pdfBusy" class="td-assistant-reading">
+            <b-spinner small class="mr-1" />{{ $t('assistant.attachment.reading') }}
         </div>
 
         <div v-if="sizeWarning" class="td-assistant-warning">
@@ -59,7 +63,7 @@
                 v-else
                 variant="primary"
                 size="sm"
-                :disabled="!canSend || !text.trim()"
+                :disabled="!canSend || !text.trim() || pdfBusy"
                 @click="submit"
             >
                 <font-awesome-icon icon="paper-plane" class="mr-1" />{{ $t('assistant.composer.send') }}
@@ -95,15 +99,46 @@ export default {
             text: '',
             files: [],
             sizeWarning: false,
-            pdfWarning: ''
+            pdfWarning: '',
+            pdfBusy: false
         };
     },
-    computed: mapState({
-        attachments: (state) => state.assistant.attachments
-    }),
+    computed: {
+        ...mapState({
+            attachments: (state) => state.assistant.attachments
+        }),
+        // one chip per logical attachment: parts that share a `group` (the
+        // page text + page images of one PDF) collapse into a single chip
+        attachmentChips() {
+            const chips = [];
+            const groups = new Map();
+            this.attachments.forEach((att, idx) => {
+                if (!att.group) {
+                    chips.push({
+                        label: att.name,
+                        icon: att.kind === 'image' ? 'image' : 'file-alt',
+                        indices: [idx]
+                    });
+                    return;
+                }
+                if (!groups.has(att.group)) {
+                    const chip = { group: att.group, icon: 'file-pdf', indices: [], pages: 0 };
+                    groups.set(att.group, chip);
+                    chips.push(chip);
+                }
+                const chip = groups.get(att.group);
+                chip.indices.push(idx);
+                if (att.kind === 'image') {
+                    chip.pages += 1;
+                }
+                chip.label = `${att.group} (${this.$t('assistant.attachment.pages', { count: chip.pages })})`;
+            });
+            return chips;
+        }
+    },
     methods: {
         submit() {
-            if (this.busy || !this.canSend || !this.text.trim()) {
+            if (this.busy || !this.canSend || this.pdfBusy || !this.text.trim()) {
                 return;
             }
             // clear BEFORE emitting so the input flushes even if a send
@@ -147,6 +182,7 @@ export default {
             // PDFs are binary: extract the text (CJK-capable) and render each
             // page as an image so the model can read embedded diagrams.
             this.pdfWarning = '';
+            this.pdfBusy = true;
             try {
                 const { attachments, truncated } = await extractPdfAttachments(file);
                 attachments.forEach((attachment) => this.addAttachment(attachment));
@@ -156,6 +192,8 @@ export default {
             } catch (e) {
                 console.error('PDF extraction failed', e);
                 this.pdfWarning = 'pdfFailed';
+            } finally {
+                this.pdfBusy = false;
             }
         },
         onFilesSelected(files) {
@@ -179,8 +217,11 @@ export default {
                 }
             }
         },
-        removeAttachment(idx) {
-            this.$store.dispatch(assistantActions.removeAttachment, idx);
+        removeChip(chip) {
+            // remove every part of the chip, highest index first so the
+            // remaining indices stay valid
+            [...chip.indices].sort((a, b) => b - a).
+                forEach((idx) => this.$store.dispatch(assistantActions.removeAttachment, idx));
             this.sizeWarning = false;
             this.pdfWarning = '';
         }
@@ -211,6 +252,11 @@ export default {
 }
 .td-assistant-warning {
     color: #b00;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+.td-assistant-reading {
+    color: #888;
     font-size: 12px;
     margin-bottom: 4px;
 }

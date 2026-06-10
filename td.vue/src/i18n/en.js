@@ -547,6 +547,7 @@ const messages = {
         unavailable: 'The AI assistant is not enabled for this instance.',
         empty: 'Describe your system or share a design document, then ask me to build a threat model.',
         noDiagram: 'Open a diagram to start collaborating on a threat model.',
+        working: 'The assistant is working…',
         roles: {
             you: 'You',
             assistant: 'Assistant'
@@ -562,7 +563,9 @@ const messages = {
             image: 'Image',
             tooLarge: 'Attachments exceed the size limit. Please remove some before sending.',
             pdfFailed: 'Could not read the attached PDF. Try exporting it again or paste the text instead.',
-            pdfTruncated: 'The PDF is long, so only the first 20 pages were attached.'
+            pdfTruncated: 'The PDF is long, so only the first 20 pages were attached.',
+            reading: 'Reading the PDF…',
+            pages: '{count} pages'
         },
         settingsModal: {
             intro: 'Bring your own API key. Keys are stored encrypted on this device and never leave it except to call the selected provider.',

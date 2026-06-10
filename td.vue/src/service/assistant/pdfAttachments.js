@@ -92,9 +92,11 @@ export const extractPdfAttachments = async (file, { maxPages = DEFAULT_MAX_PAGES
     }
 
     return {
+        // every part carries group: <file name> so the composer can render the
+        // whole PDF as ONE chip instead of a chip per page
         attachments: [
-            { kind: 'text', mediaType: 'text/plain', name, data: fullText },
-            ...images
+            { kind: 'text', mediaType: 'text/plain', name, group: name, data: fullText },
+            ...images.map((image) => ({ ...image, group: name }))
         ],
         pageCount: doc.numPages,
         truncated

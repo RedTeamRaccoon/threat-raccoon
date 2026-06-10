@@ -25,10 +25,14 @@ describe('components/Assistant/AssistantPanel.vue', () => {
         llmDefaultModel: 'claude-opus-4-8'
     };
 
-    const mountPanel = ({ propsData, threatmodel } = {}) => {
+    const mountPanel = ({ propsData, threatmodel, assistant } = {}) => {
         const state = {
             config: { config },
-            assistant: { provider: null, model: null, messages: [], streamingText: '', pendingToolCalls: [], runState: 'idle', error: null },
+            assistant: {
+                provider: null, model: null, messages: [], streamingText: '',
+                pendingToolCalls: [], runState: 'idle', error: null,
+                ...(assistant || {})
+            },
             threatmodel: threatmodel || { selectedDiagram: { id: 0, diagramType: 'STRIDE' } }
         };
         const store = { state, dispatch: jest.fn() };
@@ -60,6 +64,23 @@ describe('components/Assistant/AssistantPanel.vue', () => {
         // must be openai's own model, NOT the global default claude-opus-4-8
         expect(wrapper.vm.selectedModel).toBe('gpt-4o');
         expect(store.dispatch).toHaveBeenCalledWith('ASSISTANT_SET_MODEL', 'gpt-4o');
+    });
+
+    describe('working indicator', () => {
+        it('shows a spinner while a run is active but nothing is streaming yet', () => {
+            const { wrapper } = mountPanel({ assistant: { runState: 'running' } });
+            expect(wrapper.find('.td-assistant-working').exists()).toBe(true);
+        });
+
+        it('hides the spinner once text is streaming', () => {
+            const { wrapper } = mountPanel({ assistant: { runState: 'running', streamingText: 'building…' } });
+            expect(wrapper.find('.td-assistant-working').exists()).toBe(false);
+        });
+
+        it('shows nothing when idle', () => {
+            const { wrapper } = mountPanel();
+            expect(wrapper.find('.td-assistant-working').exists()).toBe(false);
+        });
     });
 
     describe('model mode (threat model overview page)', () => {
