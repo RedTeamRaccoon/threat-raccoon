@@ -16,7 +16,8 @@ const makeRes = () => {
         write (chunk) { this.chunks.push(chunk); },
         end () { this.writableEnded = true; },
         status (code) { this.statusCode = code; return this; },
-        json (body) { this.body = body; this.writableEnded = true; return this; }
+        json (body) { this.body = body; this.writableEnded = true; return this; },
+        on (event, handler) { (this.handlers || (this.handlers = {}))[event] = handler; }
     };
     return res;
 };
@@ -52,6 +53,32 @@ describe('controllers/llmcontroller.js', () => {
                 'data: {"type":"message_stop"}\n\n'
             ]);
             expect(res.writableEnded).to.be.true;
+        });
+
+        it('wires abort to response close, not request close (Express 5 fires req close on body end)', async () => {
+            sinon.stub(env, 'get').returns({ config: { LLM_PROVIDER: 'anthropic', LLM_ALLOW_USER_KEY: 'false' } });
+            let abortedDuringStream = null;
+            sinon.stub(llmProviders, 'get').returns({
+                createCompletionStream: async function* (_req, opts) {
+                    yield { type: 'message_start' };
+                    abortedDuringStream = opts.signal.aborted;
+                    yield { type: 'message_stop' };
+                }
+            });
+
+            const req = makeReq({ messages: [] });
+            let reqCloseWired = false;
+            req.on = (event) => { if (event === 'close') reqCloseWired = true; };
+            const res = makeRes();
+            await llmController.complete(req, res);
+
+            // The request's `close` must NOT abort the stream (it fires as soon as the
+            // request body is consumed under Express 5, which would kill the stream).
+            expect(reqCloseWired).to.be.false;
+            // The response's `close` is the correct client-disconnect signal.
+            expect(res.handlers).to.have.property('close');
+            // A normally-completing stream is never aborted.
+            expect(abortedDuringStream).to.equal(false);
         });
 
         it('returns a 400 when the provider cannot be resolved', async () => {

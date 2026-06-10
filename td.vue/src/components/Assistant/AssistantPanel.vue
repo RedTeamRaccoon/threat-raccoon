@@ -231,11 +231,15 @@ export default {
         applyDefaultModel() {
             const provider = this.aiConfig.providers.find((p) => p.id === this.selectedProvider);
             const models = (provider && provider.models) || [];
-            const first = models.length
-                ? (typeof models[0] === 'string' ? models[0] : models[0].id)
-                : null;
-            this.selectedModel = this.$store.state.assistant.model || this.aiConfig.defaultModel || first;
-            this.$store.dispatch(assistantActions.setModel, this.selectedModel);
+            const ids = models.map((m) => (typeof m === 'string' ? m : m.id));
+            // Pick the first candidate that the SELECTED provider actually offers,
+            // so switching providers never leaves a model from another provider
+            // (e.g. the global default) selected — which the server would reject.
+            const providerDefault = provider && provider.default;
+            const candidates = [this.$store.state.assistant.model, providerDefault, this.aiConfig.defaultModel];
+            const picked = candidates.find((m) => m && ids.includes(m)) || ids[0] || null;
+            this.selectedModel = picked;
+            this.$store.dispatch(assistantActions.setModel, picked);
         },
         onProviderChange(value) {
             this.selectedProvider = value;
