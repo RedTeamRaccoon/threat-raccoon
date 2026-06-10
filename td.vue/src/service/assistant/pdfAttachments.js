@@ -10,7 +10,10 @@
 // keep the longest page edge under the common vision-model sweet spot
 const MAX_RENDER_DIM = 1568;
 const JPEG_QUALITY = 0.85;
-const DEFAULT_MAX_PAGES = 20;
+// page images are the token-expensive part; text is cheap, so it gets its own
+// (much larger) byte budget and keeps flowing long after images stop
+const DEFAULT_MAX_IMAGE_PAGES = 20;
+const DEFAULT_TEXT_BUDGET_BYTES = 250 * 1024;
 
 // BASE_URL is the Vue CLI publicPath ('/' in dev, '/public/' in production);
 // vue.config.js copies the pdf.js cMaps/standard fonts to pdfjs/ in the build.
@@ -52,12 +55,16 @@ const pageImage = async (page) => {
 };
 
 /**
- * Extracts a PDF file into assistant attachments.
+ * Extracts a PDF file into assistant attachments. Text is extracted until the
+ * text budget runs out (covers long specs); each page is also rendered as an
+ * image, but only up to the image-page cap.
  * @param {File} file
- * @param {{ maxPages?: Number }} [options]
- * @returns {Promise<{ attachments: Object[], pageCount: Number, truncated: Boolean }>}
+ * @param {{ maxPages?: Number, textBudget?: Number }} [options]
+ * @returns {Promise<{ attachments: Object[], pageCount: Number, truncated: Boolean,
+ *                     textPages: Number, imagePages: Number }>}
  */
-export const extractPdfAttachments = async (file, { maxPages = DEFAULT_MAX_PAGES } = {}) => {
+export const extractPdfAttachments = async (file, options = {}) => {
+    const { maxPages = DEFAULT_MAX_IMAGE_PAGES, textBudget = DEFAULT_TEXT_BUDGET_BYTES } = options;
     const data = new Uint8Array(await file.arrayBuffer());
     const pdfjs = await loadPdfJs();
     const doc = await pdfjs.getDocument({
@@ -68,27 +75,41 @@ export const extractPdfAttachments = async (file, { maxPages = DEFAULT_MAX_PAGES
         standardFontDataUrl: `${assetBase()}standard_fonts/`
     }).promise;
 
-    const pages = Math.min(doc.numPages, maxPages);
-    const truncated = doc.numPages > pages;
+    const imagePages = Math.min(doc.numPages, maxPages);
     const name = file.name || 'document.pdf';
 
     const textParts = [];
     const images = [];
-    for (let p = 1; p <= pages; p += 1) {
+    let textBytes = 0;
+    let textPages = 0;
+    for (let p = 1; p <= doc.numPages; p += 1) {
+        const wantText = textBytes < textBudget;
+        const wantImage = p <= imagePages;
+        if (!wantText && !wantImage) {
+            break;
+        }
         const page = await doc.getPage(p);
-        const text = await pageText(page);
-        textParts.push(`[Page ${p}]\n${text}`);
-        images.push({
-            kind: 'image',
-            mediaType: 'image/jpeg',
-            name: `${name} (page ${p})`,
-            data: await pageImage(page)
-        });
+        if (wantText) {
+            const text = await pageText(page);
+            textParts.push(`[Page ${p}]\n${text}`);
+            textBytes += text.length;
+            textPages = p;
+        }
+        if (wantImage) {
+            images.push({
+                kind: 'image',
+                mediaType: 'image/jpeg',
+                name: `${name} (page ${p})`,
+                data: await pageImage(page)
+            });
+        }
     }
 
+    const truncated = textPages < doc.numPages || imagePages < doc.numPages;
     let fullText = textParts.join('\n\n');
     if (truncated) {
-        fullText += `\n\n[Only the first ${pages} of ${doc.numPages} pages were attached.]`;
+        fullText += `\n\n[Document truncated: text included for the first ${textPages} of ${doc.numPages} pages,`
+            + ` page images for the first ${imagePages}. Tell the user if you need a later section.]`;
     }
 
     return {
@@ -99,7 +120,9 @@ export const extractPdfAttachments = async (file, { maxPages = DEFAULT_MAX_PAGES
             ...images.map((image) => ({ ...image, group: name }))
         ],
         pageCount: doc.numPages,
-        truncated
+        truncated,
+        textPages,
+        imagePages
     };
 };
 

@@ -22,7 +22,7 @@
         </div>
 
         <div v-if="pdfWarning" class="td-assistant-warning">
-            {{ $t(`assistant.attachment.${pdfWarning}`) }}
+            {{ $t(`assistant.attachment.${pdfWarning}`, pdfWarningParams) }}
         </div>
 
         <!-- native textarea: bootstrap-vue's b-form-textarea under @vue/compat
@@ -100,6 +100,7 @@ export default {
             files: [],
             sizeWarning: false,
             pdfWarning: '',
+            pdfWarningParams: {},
             pdfBusy: false
         };
     },
@@ -182,12 +183,14 @@ export default {
             // PDFs are binary: extract the text (CJK-capable) and render each
             // page as an image so the model can read embedded diagrams.
             this.pdfWarning = '';
+            this.pdfWarningParams = {};
             this.pdfBusy = true;
             try {
-                const { attachments, truncated } = await extractPdfAttachments(file);
+                const { attachments, truncated, textPages, imagePages, pageCount } = await extractPdfAttachments(file);
                 attachments.forEach((attachment) => this.addAttachment(attachment));
                 if (truncated) {
                     this.pdfWarning = 'pdfTruncated';
+                    this.pdfWarningParams = { textPages, imagePages, total: pageCount };
                 }
             } catch (e) {
                 console.error('PDF extraction failed', e);
@@ -224,6 +227,7 @@ export default {
                 forEach((idx) => this.$store.dispatch(assistantActions.removeAttachment, idx));
             this.sizeWarning = false;
             this.pdfWarning = '';
+            this.pdfWarningParams = {};
         }
     }
 };

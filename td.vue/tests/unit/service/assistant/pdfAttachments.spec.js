@@ -96,7 +96,7 @@ describe('service/assistant/pdfAttachments.js', () => {
         expect(args.standardFontDataUrl).toContain('pdfjs/standard_fonts/');
     });
 
-    it('truncates long documents and says so in the text attachment', async () => {
+    it('keeps extracting text past the image-page cap', async () => {
         mockGetDocument.mockReturnValue({
             promise: Promise.resolve(mockDoc([
                 mockPage(['one']),
@@ -105,11 +105,34 @@ describe('service/assistant/pdfAttachments.js', () => {
             ]))
         });
 
-        const { attachments, truncated } = await extractPdfAttachments(file, { maxPages: 2 });
+        const { attachments, truncated, textPages, imagePages } = await extractPdfAttachments(file, { maxPages: 2 });
 
         expect(truncated).toBe(true);
-        // text + 2 page images only
+        expect(imagePages).toBe(2);
+        // text still covers EVERY page; only the page images stop at the cap
+        expect(textPages).toBe(3);
         expect(attachments).toHaveLength(3);
-        expect(attachments[0].data).toContain('Only the first 2 of 3 pages');
+        expect(attachments[0].data).toContain('[Page 3]');
+        expect(attachments[0].data).toContain('text included for the first 3 of 3 pages');
+        expect(attachments[0].data).toContain('page images for the first 2');
+    });
+
+    it('stops extracting text when the text budget is exhausted', async () => {
+        mockGetDocument.mockReturnValue({
+            promise: Promise.resolve(mockDoc([
+                mockPage(['0123456789']),
+                mockPage(['0123456789']),
+                mockPage(['0123456789'])
+            ]))
+        });
+
+        // budget covers roughly one page of text; images capped at 1
+        const { truncated, textPages, imagePages, attachments } =
+            await extractPdfAttachments(file, { maxPages: 1, textBudget: 5 });
+
+        expect(truncated).toBe(true);
+        expect(textPages).toBe(1);
+        expect(imagePages).toBe(1);
+        expect(attachments[0].data).not.toContain('[Page 2]');
     });
 });

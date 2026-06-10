@@ -548,7 +548,7 @@ const messages = {
             image: '图片',
             tooLarge: '附件超出大小限制。请先移除部分附件再发送。',
             pdfFailed: '无法读取附加的 PDF。请尝试重新导出，或直接粘贴文本。',
-            pdfTruncated: 'PDF 较长，只附加了前 20 页。',
+            pdfTruncated: 'PDF 较长：已附加前 {textPages} 页（共 {total} 页）的文本和前 {imagePages} 页的页面图像。如需完整覆盖，请附加最相关的章节。',
             reading: '正在读取 PDF…',
             pages: '{count} 页'
         },

@@ -563,7 +563,7 @@ const messages = {
             image: 'Image',
             tooLarge: 'Attachments exceed the size limit. Please remove some before sending.',
             pdfFailed: 'Could not read the attached PDF. Try exporting it again or paste the text instead.',
-            pdfTruncated: 'The PDF is long, so only the first 20 pages were attached.',
+            pdfTruncated: 'Long PDF: attached the text of the first {textPages} of {total} pages and page images for the first {imagePages}. For full coverage attach the most relevant section.',
             reading: 'Reading the PDF…',
             pages: '{count} pages'
         },
