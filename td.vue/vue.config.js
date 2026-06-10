@@ -1,5 +1,6 @@
 const path = require('path');
 const { CycloneDxWebpackPlugin } = require('@cyclonedx/webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 const fs = require('fs');
 
 require('dotenv').config({ path: process.env.ENV_FILE || path.resolve(__dirname, '../.env') });
@@ -184,7 +185,22 @@ module.exports = {
                     outputLocation: '.sbom',
                     specVersion: '1.5'
                 }
-            )
+            ),
+            // pdf.js needs its cMaps served to extract CJK text from attached
+            // PDFs (and standard fonts for some documents); served under
+            // <publicPath>/pdfjs/ (see src/service/assistant/pdfAttachments.js)
+            new CopyWebpackPlugin({
+                patterns: [
+                    {
+                        from: path.dirname(require.resolve('pdfjs-dist/package.json')) + '/cmaps',
+                        to: 'pdfjs/cmaps'
+                    },
+                    {
+                        from: path.dirname(require.resolve('pdfjs-dist/package.json')) + '/standard_fonts',
+                        to: 'pdfjs/standard_fonts'
+                    }
+                ]
+            })
         ],
         output: {
             hashFunction: 'xxhash64'

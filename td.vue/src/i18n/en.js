@@ -559,7 +559,9 @@ const messages = {
         },
         attachment: {
             image: 'Image',
-            tooLarge: 'Attachments exceed the size limit. Please remove some before sending.'
+            tooLarge: 'Attachments exceed the size limit. Please remove some before sending.',
+            pdfFailed: 'Could not read the attached PDF. Try exporting it again or paste the text instead.',
+            pdfTruncated: 'The PDF is long, so only the first 20 pages were attached.'
         },
         settingsModal: {
             intro: 'Bring your own API key. Keys are stored encrypted on this device and never leave it except to call the selected provider.',

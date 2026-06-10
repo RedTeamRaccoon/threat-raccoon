@@ -33,6 +33,38 @@ describe('llm/providers/openaiTranslate.js', () => {
             ]);
         });
 
+        it('translates user image blocks into multi-part image_url content', () => {
+            const result = toOpenAiMessages({
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: 'see attached diagram' },
+                        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' } }
+                    ]
+                }]
+            });
+            expect(result).to.deep.equal([{
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'see attached diagram' },
+                    { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } }
+                ]
+            }]);
+        });
+
+        it('keeps plain string content when there are no images', () => {
+            const result = toOpenAiMessages({
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: 'part one ' },
+                        { type: 'text', text: 'part two' }
+                    ]
+                }]
+            });
+            expect(result).to.deep.equal([{ role: 'user', content: 'part one part two' }]);
+        });
+
         it('translates assistant tool_use blocks into tool_calls', () => {
             const result = toOpenAiMessages({
                 messages: [{

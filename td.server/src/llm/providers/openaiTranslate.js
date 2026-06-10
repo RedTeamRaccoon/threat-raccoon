@@ -48,16 +48,26 @@ const assistantMessage = (blocks) => {
 
 const userMessages = (blocks) => {
     const out = [];
-    const textParts = [];
+    const parts = [];
     for (const block of blocks) {
         if (block.type === 'text') {
-            textParts.push(block.text);
+            parts.push({ type: 'text', text: block.text });
+        } else if (block.type === 'image' && block.source && block.source.type === 'base64') {
+            // normalized (Anthropic-style) image block -> OpenAI image_url part
+            parts.push({
+                type: 'image_url',
+                image_url: { url: `data:${block.source.media_type};base64,${block.source.data}` }
+            });
         } else if (block.type === 'tool_result') {
             out.push({ role: 'tool', tool_call_id: block.tool_use_id, content: toolResultContentToString(block.content) });
         }
     }
-    if (textParts.length > 0) {
-        out.unshift({ role: 'user', content: textParts.join('') });
+    if (parts.length > 0) {
+        // plain string content unless an image forces the multi-part shape
+        const content = parts.some((p) => p.type === 'image_url')
+            ? parts
+            : parts.map((p) => p.text).join('');
+        out.unshift({ role: 'user', content });
     }
     return out;
 };

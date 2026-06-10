@@ -24,6 +24,7 @@ const MAX_ITERATIONS = 25;
 
 const SYSTEM_PROMPT = [
     'You are a threat-modeling assistant embedded in OWASP Threat Dragon. You build the model on the live diagram canvas by calling the provided tools, and the user watches it appear in real time. Prefer calling tools to make changes rather than only describing them.',
+    'Reply in the language the user writes in. Attached documents may be written in a different language (for example Chinese design documents); read them in their original language, but keep diagram element names and threat titles in the language the user is conversing in unless asked otherwise.',
     MODELING_GUIDANCE
 ].join('\n\n');
 

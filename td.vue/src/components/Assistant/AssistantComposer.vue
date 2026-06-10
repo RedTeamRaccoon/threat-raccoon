@@ -17,16 +17,23 @@
             {{ $t('assistant.attachment.tooLarge') }}
         </div>
 
-        <b-form-textarea
+        <div v-if="pdfWarning" class="td-assistant-warning">
+            {{ $t(`assistant.attachment.${pdfWarning}`) }}
+        </div>
+
+        <!-- native textarea: bootstrap-vue's b-form-textarea under @vue/compat
+             does not reliably reflect programmatic value changes (the input
+             kept its text after send), and native v-model is dependable -->
+        <textarea
             id="assistant-input"
             v-model="text"
+            class="form-control td-assistant-input"
             :placeholder="$t('assistant.composer.placeholder')"
             :disabled="busy"
-            rows="2"
-            max-rows="6"
+            rows="3"
             @keydown.enter.exact.prevent="submit"
             @paste="onPaste"
-        ></b-form-textarea>
+        ></textarea>
 
         <div class="td-assistant-actions">
             <b-form-file
@@ -35,7 +42,7 @@
                 size="sm"
                 :placeholder="$t('assistant.composer.attach')"
                 :browse-text="$t('assistant.composer.browse')"
-                accept="text/*,image/*,.json,.md,.txt"
+                accept="text/*,image/*,application/pdf,.pdf,.json,.md,.txt"
                 class="td-assistant-file"
                 @input="onFilesSelected"
             ></b-form-file>
@@ -65,8 +72,11 @@
 import { mapState } from 'vuex';
 
 import assistantActions from '@/store/actions/assistant.js';
+import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
 
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
+
+const isPdf = (file) => file.type === 'application/pdf' || (/\.pdf$/iu).test(file.name || '');
 
 export default {
     name: 'TdAssistantComposer',
@@ -84,7 +94,8 @@ export default {
         return {
             text: '',
             files: [],
-            sizeWarning: false
+            sizeWarning: false,
+            pdfWarning: ''
         };
     },
     computed: mapState({
@@ -95,8 +106,11 @@ export default {
             if (this.busy || !this.canSend || !this.text.trim()) {
                 return;
             }
-            this.$emit('send', this.text.trim());
+            // clear BEFORE emitting so the input flushes even if a send
+            // listener throws synchronously
+            const message = this.text.trim();
             this.text = '';
+            this.$emit('send', message);
         },
         totalBytes() {
             return this.attachments.reduce((sum, a) => sum + (a.data ? a.data.length : 0), 0);
@@ -110,6 +124,9 @@ export default {
             this.$store.dispatch(assistantActions.addAttachment, attachment);
         },
         readFile(file) {
+            if (isPdf(file)) {
+                return this.readPdf(file);
+            }
             const isImage = file.type && file.type.startsWith('image/');
             const reader = new FileReader();
             reader.onload = () => {
@@ -124,6 +141,21 @@ export default {
                 reader.readAsDataURL(file);
             } else {
                 reader.readAsText(file);
+            }
+        },
+        async readPdf(file) {
+            // PDFs are binary: extract the text (CJK-capable) and render each
+            // page as an image so the model can read embedded diagrams.
+            this.pdfWarning = '';
+            try {
+                const { attachments, truncated } = await extractPdfAttachments(file);
+                attachments.forEach((attachment) => this.addAttachment(attachment));
+                if (truncated) {
+                    this.pdfWarning = 'pdfTruncated';
+                }
+            } catch (e) {
+                console.error('PDF extraction failed', e);
+                this.pdfWarning = 'pdfFailed';
             }
         },
         onFilesSelected(files) {
@@ -150,6 +182,7 @@ export default {
         removeAttachment(idx) {
             this.$store.dispatch(assistantActions.removeAttachment, idx);
             this.sizeWarning = false;
+            this.pdfWarning = '';
         }
     }
 };
