@@ -3,6 +3,26 @@ import local from '@/service/provider/local.provider.js';
 describe('service/local.provider.js', () => {
     describe('getDashboardActions', () => {
 
+        describe('create with AI', () => {
+            let action;
+
+            beforeEach(() => {
+                action = local.getDashboardActions().find(x => x.key === 'createWithAI');
+            });
+
+            it('is the first action', () => {
+                expect(local.getDashboardActions()[0].key).toEqual('createWithAI');
+            });
+
+            it('links to the create page with the assistant query', () => {
+                expect(action.to).toEqual('/local/threatmodel/new?assistant=1');
+            });
+
+            it('uses the robot icon', () => {
+                expect(action.icon).toEqual('robot');
+            });
+        });
+
         describe('import', () => {
             let action;
 

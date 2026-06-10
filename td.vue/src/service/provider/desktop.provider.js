@@ -4,6 +4,11 @@ const providerType = providerTypes.desktop;
 
 const getDashboardActions = () => ([
     {
+        to: `/${providerType}/threatmodel/new?assistant=1`,
+        key: 'createWithAI',
+        icon: 'robot'
+    },
+    {
         to: `/${providerType}/threatmodel/import`,
         key: 'openExisting',
         icon: 'file-import'

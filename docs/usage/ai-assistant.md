@@ -71,8 +71,20 @@ instead of failing every request. When the live list cannot be fetched, the conf
 
 ### Use it
 
+The assistant is available at three levels:
+
+- **Welcome screen** — the *Create a Threat Model with AI assistance* tile creates a fresh model and opens
+  the assistant on it directly.
+- **Threat model overview page** (the diagram tiles) — the assistant panel here operates on the **whole
+  model**: it can create new diagrams, and bulk-edit or review across every DFD. Open a diagram afterwards
+  to see the results.
+- **Diagram editor** — the assistant drives the live canvas of the open diagram, building in real time.
+
+The conversation follows you between pages, so you can scaffold diagrams from the overview and then drill
+into one to refine it.
+
 1. Sign in (or use the local session, see above) and open or create a threat model and a diagram.
-2. Open the **AI assistant** panel from the toggle in the diagram editor toolbar.
+2. Open the **AI assistant** panel from the robot toggle in the toolbar.
 3. Optionally attach one or more application design documents, or paste them in. Text, images and **PDFs**
    are supported: each PDF page's text is extracted (CJK-capable, so e.g. Chinese specs work) and the page
    is also rendered as an image so vision-capable models can read embedded diagrams.
@@ -208,6 +220,13 @@ processes, data stores, data flows and STRIDE threats to the threat model."* It 
 (`createDiagram`, `addElement`, `connectFlow`, `addBoundary`, `addThreat`, `updateElement`, `removeElement`,
 `listThreats`, `validateModel`, `getModelSummary`); every change is validated against the v2 schema and written
 back to the model file.
+
+An eleventh tool, **`getEditorContext`**, reports which threat model and diagram you currently have open in
+the Threat Dragon editor (the browser reports it as you navigate; the state is shared with MCP clients via
+`~/.threat-dragon/editor-context.json`). That lets you say *"review the diagram I'm working on"* in Copilot
+CLI / VS Code / OpenCode without naming it. The context carries an `updatedAt` timestamp; if it is stale or
+absent the agent should fall back to `getModelSummary` and ask. Remember the file-race rule regardless:
+**save in Threat Dragon before asking an external client to edit, and re-open the model afterwards.**
 
 ### Hosted (HTTP)
 

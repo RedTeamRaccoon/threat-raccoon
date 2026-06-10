@@ -44,6 +44,7 @@ const messages = {
             description: '您已准备好开始使您的应用程序设计更加安全。您可以通过选择以下选项之一来打开现有威胁模型或创建新的威胁模型。'
         },
         actions: {
+            createWithAI: '用 AI 协助创建威胁模型',
             openExisting: '打开现有的威胁模型',
             createNew: '创建一个新的、空的威胁模型',
             readDemo: '打开示例威胁模型',

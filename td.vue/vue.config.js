@@ -2,6 +2,7 @@ const path = require('path');
 const { CycloneDxWebpackPlugin } = require('@cyclonedx/webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const fs = require('fs');
+const webpack = require('webpack');
 
 require('dotenv').config({ path: process.env.ENV_FILE || path.resolve(__dirname, '../.env') });
 const serverApiProtocol = process.env.SERVER_API_PROTOCOL || 'http';
@@ -180,6 +181,20 @@ module.exports = {
             }
         },
         plugins: [
+            // shared/tmcore/validate.js loads the v2 schema via node:module
+            // createRequire, which CANNOT enter the browser bundle. Swap it (only
+            // when imported from within shared/tmcore, e.g. by ops.js) for the
+            // browser shim, which reuses the app's own AJV instance compiled with
+            // the SAME schema and options — so validation cannot diverge.
+            new webpack.NormalModuleReplacementPlugin(/^\.\/validate\.js$/, (resource) => {
+                // tmcore's OWN file only: uuid (under shared/tmcore/node_modules)
+                // has an internal ./validate.js of its own that must NOT be swapped
+                if (resource.context &&
+                    resource.context.includes(path.join('shared', 'tmcore')) &&
+                    !resource.context.includes('node_modules')) {
+                    resource.request = path.resolve(__dirname, 'src/service/schema/tmcoreValidate.js');
+                }
+            }),
             new CycloneDxWebpackPlugin(
                 {
                     outputLocation: '.sbom',

@@ -54,8 +54,15 @@ export default {
             // tell the desktop server that the model has changed
             window.electronAPI.modelOpened(newTm.summary.title);
         }
+        const withAssistant = !!(this.$route.query && this.$route.query.assistant);
         if (this.providerType === 'local' || this.providerType === 'desktop') {
-            this.$router.push({ name: `${this.providerType}ThreatModelEdit`, params });
+            if (withAssistant) {
+                // "create with AI" welcome tile: go straight to the model OVERVIEW
+                // page with the assistant panel requested (?assistant=1)
+                this.$router.push({ name: `${this.providerType}ThreatModel`, params, query: { assistant: '1' } });
+            } else {
+                this.$router.push({ name: `${this.providerType}ThreatModelEdit`, params });
+            }
         } else {
             this.$router.push({ name: `${this.providerType}ThreatModelCreate`, params });
         }

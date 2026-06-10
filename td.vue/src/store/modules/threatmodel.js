@@ -8,6 +8,7 @@ import {
     THREATMODEL_CLEAR,
     THREATMODEL_CONTRIBUTORS_UPDATED,
     THREATMODEL_CREATE,
+    THREATMODEL_DATA_REPLACED,
     THREATMODEL_DIAGRAM_CLOSED,
     THREATMODEL_DIAGRAM_MODIFIED,
     THREATMODEL_DIAGRAM_SAVED,
@@ -79,6 +80,9 @@ const actions = {
             return result;
         }
     },
+    // whole-model replacement from the AI assistant's model binding; the stash
+    // (dirty-tracking baseline) is intentionally NOT touched
+    [THREATMODEL_DATA_REPLACED]: ({ commit }, model) => commit(THREATMODEL_DATA_REPLACED, model),
     [THREATMODEL_DIAGRAM_CLOSED]: ({ commit }) => commit(THREATMODEL_DIAGRAM_CLOSED),
     [THREATMODEL_DIAGRAM_MODIFIED]: ({ commit }, diagram) => commit(THREATMODEL_DIAGRAM_MODIFIED, diagram),
     [THREATMODEL_DIAGRAM_SAVED]: ({ commit }, diagram) => commit(THREATMODEL_DIAGRAM_SAVED, diagram),
@@ -261,6 +265,11 @@ const mutations = {
             : (contributors ? [contributors] : []);
         state.data.detail.contributors.length = 0;
         normalizedContributors.forEach((name, idx) => Vue.set(state.data.detail.contributors, idx, { name }));
+    },
+    [THREATMODEL_DATA_REPLACED]: (state, model) => {
+        // replace the model data only; state.stash stays as the dirty-tracking
+        // baseline so modified/restore keep working
+        Vue.set(state, 'data', model);
     },
     [THREATMODEL_DIAGRAM_CLOSED]: (state) => {
         state.modified = false;

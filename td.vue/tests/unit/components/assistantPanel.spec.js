@@ -3,8 +3,11 @@ import { shallowMount, createLocalVue } from '@vue/test-utils';
 
 import api from '@/service/api/api.js';
 import TdAssistantPanel from '@/components/Assistant/AssistantPanel.vue';
+import { createModelBinding } from '@/service/assistant/modelBinding.js';
+import { MODEL_MODE_CONTEXT } from '@/service/assistant/agentLoop.js';
 
 jest.mock('@/service/api/api.js', () => ({ getAsync: jest.fn() }));
+jest.mock('@/service/assistant/modelBinding.js', () => ({ createModelBinding: jest.fn() }));
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -22,18 +25,18 @@ describe('components/Assistant/AssistantPanel.vue', () => {
         llmDefaultModel: 'claude-opus-4-8'
     };
 
-    const mountPanel = () => {
+    const mountPanel = ({ propsData, threatmodel } = {}) => {
         const state = {
             config: { config },
             assistant: { provider: null, model: null, messages: [], streamingText: '', pendingToolCalls: [], runState: 'idle', error: null },
-            threatmodel: { selectedDiagram: { id: 0, diagramType: 'STRIDE' } }
+            threatmodel: threatmodel || { selectedDiagram: { id: 0, diagramType: 'STRIDE' } }
         };
         const store = { state, dispatch: jest.fn() };
         const localVue = createLocalVue();
         localVue.use(BootstrapVue);
         const wrapper = shallowMount(TdAssistantPanel, {
             localVue,
-            propsData: { graph: {} },
+            propsData: propsData || { graph: {} },
             mocks: { $t: (t) => t, $store: store }
         });
         return { wrapper, store };
@@ -57,6 +60,62 @@ describe('components/Assistant/AssistantPanel.vue', () => {
         // must be openai's own model, NOT the global default claude-opus-4-8
         expect(wrapper.vm.selectedModel).toBe('gpt-4o');
         expect(store.dispatch).toHaveBeenCalledWith('ASSISTANT_SET_MODEL', 'gpt-4o');
+    });
+
+    describe('model mode (threat model overview page)', () => {
+        const fakeBinding = { execute: jest.fn() };
+
+        beforeEach(() => {
+            // resetMocks wipes implementations between tests
+            createModelBinding.mockReturnValue(fakeBinding);
+        });
+
+        it('can send when a model is loaded, even without an open diagram', () => {
+            const { wrapper } = mountPanel({
+                propsData: { mode: 'model' },
+                threatmodel: { data: { summary: { title: 't' } }, selectedDiagram: {} }
+            });
+            expect(wrapper.vm.canSend).toBe(true);
+        });
+
+        it('cannot send when no model is loaded', () => {
+            const { wrapper } = mountPanel({
+                propsData: { mode: 'model' },
+                threatmodel: { data: {}, selectedDiagram: {} }
+            });
+            expect(wrapper.vm.canSend).toBe(false);
+        });
+
+        it('hides the open-a-diagram hint in model mode', () => {
+            const { wrapper } = mountPanel({
+                propsData: { mode: 'model' },
+                threatmodel: { data: {}, selectedDiagram: {} }
+            });
+            expect(wrapper.find('.td-assistant-hint').exists()).toBe(false);
+        });
+
+        it('sends with the model binding and the model-mode system context', () => {
+            const { wrapper, store } = mountPanel({
+                propsData: { mode: 'model' },
+                threatmodel: { data: { summary: { title: 't' } }, selectedDiagram: {} }
+            });
+            wrapper.vm.send('add a diagram');
+            expect(createModelBinding).toHaveBeenCalledWith(store);
+            expect(store.dispatch).toHaveBeenCalledWith('ASSISTANT_SEND', expect.objectContaining({
+                text: 'add a diagram',
+                binding: fakeBinding,
+                systemContext: MODEL_MODE_CONTEXT
+            }));
+        });
+
+        it('still uses the live-canvas binding (no model context) in diagram mode', () => {
+            const { wrapper, store } = mountPanel();
+            wrapper.vm.send('add a process');
+            expect(createModelBinding).not.toHaveBeenCalled();
+            const payload = store.dispatch.mock.calls.find(([action]) => action === 'ASSISTANT_SEND')[1];
+            expect(payload.systemContext).toBeUndefined();
+            expect(payload.binding).not.toBe(fakeBinding);
+        });
     });
 
     describe('live model lists', () => {

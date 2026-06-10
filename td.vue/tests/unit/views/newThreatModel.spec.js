@@ -54,6 +54,48 @@ describe('NewThreatModel.vue', () => {
         });
     });
 
+    describe('local provider with the assistant query (create with AI tile)', () => {
+        beforeEach(() => {
+            localVue = createLocalVue();
+            localVue.use(Vuex);
+            mockStore = new Vuex.Store({
+                state: {
+                    provider: { selected: 'local' },
+                    threatmodel: { data: {} },
+                    packageBuildVersion: '2.0.0'
+                },
+                actions: {
+                    'THREATMODEL_CLEAR': () => {},
+                    'THREATMODEL_SELECTED': () => {}
+                }
+            });
+            jest.spyOn(mockStore, 'dispatch');
+            router = { push: jest.fn() };
+            shallowMount(NewThreatModel, {
+                localVue,
+                store: mockStore,
+                mocks: {
+                    $router: router,
+                    $route: {
+                        params: { foo: 'bar' },
+                        query: { assistant: '1' }
+                    }
+                }
+            });
+        });
+
+        it('navigates to the model overview page keeping the assistant query', () => {
+            expect(router.push).toHaveBeenCalledWith({
+                name: 'localThreatModel',
+                params: {
+                    foo: 'bar',
+                    threatmodel: 'New Threat Model'
+                },
+                query: { assistant: '1' }
+            });
+        });
+    });
+
     describe('git provider', () => {
         beforeEach(() => {
             localVue = createLocalVue();

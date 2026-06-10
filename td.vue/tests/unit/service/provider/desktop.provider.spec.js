@@ -3,6 +3,26 @@ import desktop from '@/service/provider/desktop.provider.js';
 describe('service/desktop.provider.js', () => {
     describe('getDashboardActions', () => {
 
+        describe('create with AI', () => {
+            let action;
+
+            beforeEach(() => {
+                action = desktop.getDashboardActions().find(x => x.key === 'createWithAI');
+            });
+
+            it('is the first action', () => {
+                expect(desktop.getDashboardActions()[0].key).toEqual('createWithAI');
+            });
+
+            it('links to the create page with the assistant query', () => {
+                expect(action.to).toEqual('/desktop/threatmodel/new?assistant=1');
+            });
+
+            it('uses the robot icon', () => {
+                expect(action.icon).toEqual('robot');
+            });
+        });
+
         describe('import', () => {
             let action;
 

@@ -16,6 +16,15 @@ module.exports = async () => {
             // Only the PURE @tmcore subpaths (tools.js/taxonomy.js) are browser/jest-safe;
             // the barrel + validate.js pull node:module, so intentionally no bare mapper.
             '^@tmcore/(.*)$': '<rootDir>/../shared/tmcore/$1',
+            // The only relative './validate.js' import in the workspace SOURCE is
+            // tmcore's (ops.js — verified by grep); map it to the browser shim here,
+            // mirroring the webpack NormalModuleReplacementPlugin in vue.config.js,
+            // because tmcore/validate.js uses node:module createRequire (jsdom-unsafe).
+            // CAVEAT: the uuid package ALSO has an internal ./validate.js, but its
+            // CJS v4 path short-circuits through crypto.randomUUID (always present
+            // on supported Node) and never loads it under jest. Webpack needed an
+            // explicit node_modules exclusion for the same collision.
+            '^\\./validate\\.js$': '<rootDir>/src/service/schema/tmcoreValidate.js',
             '^lodash-es$': 'lodash'
         },
         collectCoverage: true,

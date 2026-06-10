@@ -48,6 +48,7 @@ const messages = {
             description: 'You\'re ready to start making your application designs more secure. You can open an existing threat model or create a new one by choosing one of the options below. '
         },
         actions: {
+            createWithAI: 'Create a Threat Model with AI assistance',
             openExisting: 'Open an existing threat model',
             createNew: 'Create a new, empty threat model',
             readDemo: 'Explore a sample threat model',

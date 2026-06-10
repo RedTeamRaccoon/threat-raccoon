@@ -1,73 +1,92 @@
 <template>
     <div v-if="!!model && model.summary">
-        <b-row class="mb-4" id="title_row">
-            <b-col>
-                <td-threat-model-summary-card />
-            </b-col>
-        </b-row>
-
-        <!-- Description -->
-        <b-row class="mb-4">
-            <b-col>
-                <b-card :header="$t('threatmodel.description')">
-                    <b-row class="tm-card">
-                        <b-col>
-                            <p id="tm_description">{{ model.summary.description }}</p>
-                        </b-col>
-                    </b-row>
-                </b-card>
-            </b-col>
-        </b-row>
-
-        <!-- Diagrams -->
-        <b-row class="mb-4">
-            <b-col class="tm_diagram" lg="3" v-for="(diagram, idx) in model.detail.diagrams" :key="idx">
-                <b-card>
-                    <template #header>
-                        <h6 class="diagram-header-text">
-                            <a href="#" @click.prevent="editDiagram(diagram)" class="diagram-edit">
-                                {{ diagram.title }}
-                            </a>
-                        </h6>
-                    </template>
-                    <a href="#" @click.prevent="editDiagram(diagram)">
-                        <!-- "thumbnail": "./public/content/images/thumbnail.jpg", --> <td-image
-                            class="td-diagram-thumb"
-                            :src="require(`../assets/${diagram.thumbnail ? diagram.thumbnail.split('/').pop() : 'thumbnail.jpg'}`)"
-                            :alt="diagram.title"
-                            lazy
-                        />
-                    </a>
-                    <h6 v-if=diagram.description class="diagram-description-text">
-                        {{ diagram.description }}
-                    </h6>
-                </b-card>
-            </b-col>
-        </b-row>
         <b-row>
-            <b-col class="text-right">
-                <b-btn-group>
-                    <td-form-button id="td-edit-btn" :isPrimary="true" :onBtnClick="onEditClick" icon="edit"
-                        :text="$t('forms.edit')" />
-                    <td-form-button id="td-report-btn" :onBtnClick="onReportClick" icon="file-alt"
-                        :text="$t('forms.report')" />
-                    <!-- REPLACE the export template button with dropdown -->
-                    <td-dropdown right variant="secondary" :text="$t('forms.manage')" id="manage-model-btn" v-if="enableTemplates">
-                        <template #default="{ close }">
-                            <button
-                                type="button"
-                                class="td-dropdown-item"
-                                @click="(evt) => { onExportTemplateClick(evt); close(); }"
-                                id="export-template-option"
-                            >
-                                <font-awesome-icon icon="file-import" ></font-awesome-icon>
-                                {{ $t('forms.exportTemplate') }}
-                            </button>
-                        </template>
-                    </td-dropdown>
-                    <td-form-button id="td-close-btn" :onBtnClick="onCloseClick" icon="times"
-                        :text="$t('forms.closeModel')" />
-                </b-btn-group>
+            <b-col :lg="assistantVisible ? 9 : 12">
+                <b-row class="mb-4" id="title_row">
+                    <b-col>
+                        <td-threat-model-summary-card />
+                    </b-col>
+                    <b-col v-if="aiEnabled" cols="auto" align-self="start">
+                        <b-btn
+                            :pressed="panelOpen"
+                            variant="secondary"
+                            size="sm"
+                            class="td-assistant-toggle"
+                            :title="$t('assistant.toggle')"
+                            @click="togglePanel"
+                        >
+                            <font-awesome-icon icon="robot" />
+                        </b-btn>
+                    </b-col>
+                </b-row>
+
+                <!-- Description -->
+                <b-row class="mb-4">
+                    <b-col>
+                        <b-card :header="$t('threatmodel.description')">
+                            <b-row class="tm-card">
+                                <b-col>
+                                    <p id="tm_description">{{ model.summary.description }}</p>
+                                </b-col>
+                            </b-row>
+                        </b-card>
+                    </b-col>
+                </b-row>
+
+                <!-- Diagrams -->
+                <b-row class="mb-4">
+                    <b-col class="tm_diagram" lg="3" v-for="(diagram, idx) in model.detail.diagrams" :key="idx">
+                        <b-card>
+                            <template #header>
+                                <h6 class="diagram-header-text">
+                                    <a href="#" @click.prevent="editDiagram(diagram)" class="diagram-edit">
+                                        {{ diagram.title }}
+                                    </a>
+                                </h6>
+                            </template>
+                            <a href="#" @click.prevent="editDiagram(diagram)">
+                                <!-- "thumbnail": "./public/content/images/thumbnail.jpg", --> <td-image
+                                    class="td-diagram-thumb"
+                                    :src="require(`../assets/${diagram.thumbnail ? diagram.thumbnail.split('/').pop() : 'thumbnail.jpg'}`)"
+                                    :alt="diagram.title"
+                                    lazy
+                                />
+                            </a>
+                            <h6 v-if=diagram.description class="diagram-description-text">
+                                {{ diagram.description }}
+                            </h6>
+                        </b-card>
+                    </b-col>
+                </b-row>
+                <b-row>
+                    <b-col class="text-right">
+                        <b-btn-group>
+                            <td-form-button id="td-edit-btn" :isPrimary="true" :onBtnClick="onEditClick" icon="edit"
+                                :text="$t('forms.edit')" />
+                            <td-form-button id="td-report-btn" :onBtnClick="onReportClick" icon="file-alt"
+                                :text="$t('forms.report')" />
+                            <!-- REPLACE the export template button with dropdown -->
+                            <td-dropdown right variant="secondary" :text="$t('forms.manage')" id="manage-model-btn" v-if="enableTemplates">
+                                <template #default="{ close }">
+                                    <button
+                                        type="button"
+                                        class="td-dropdown-item"
+                                        @click="(evt) => { onExportTemplateClick(evt); close(); }"
+                                        id="export-template-option"
+                                    >
+                                        <font-awesome-icon icon="file-import" ></font-awesome-icon>
+                                        {{ $t('forms.exportTemplate') }}
+                                    </button>
+                                </template>
+                            </td-dropdown>
+                            <td-form-button id="td-close-btn" :onBtnClick="onCloseClick" icon="times"
+                                :text="$t('forms.closeModel')" />
+                        </b-btn-group>
+                    </b-col>
+                </b-row>
+            </b-col>
+            <b-col v-if="assistantVisible" lg="3">
+                <td-assistant-panel mode="model" @close="togglePanel" />
             </b-col>
         </b-row>
     </div>
@@ -99,26 +118,46 @@
 import { mapState } from 'vuex';
 
 import { getProviderType } from '@/service/provider/providers.js';
+import { providerTypes } from '@/service/provider/providerTypes.js';
+import TdAssistantPanel from '@/components/Assistant/AssistantPanel.vue';
 import TdDropdown from '@/components/Dropdown.vue';
 import TdFormButton from '@/components/FormButton.vue';
 import TdImage from '@/components/Image.vue';
 import TdThreatModelSummaryCard from '@/components/ThreatModelSummaryCard.vue';
+import assistantActions from '@/store/actions/assistant.js';
+import editorContextReporter from '@/service/assistant/editorContextReporter.js';
 import tmActions from '@/store/actions/threatmodel.js';
 
 export default {
     name: 'ThreatModel',
     components: {
+        TdAssistantPanel,
         TdDropdown,
         TdFormButton,
         TdImage,
         TdThreatModelSummaryCard
     },
-    computed: mapState({
-        enableTemplates: (state) => ['github', 'local'].includes(state.provider.selected),
-        model: (state) => state.threatmodel.data,
-        providerType: (state) => getProviderType(state.provider.selected),
-        version: (state) => state.packageBuildVersion
-    }),
+    computed: {
+        ...mapState({
+            enableTemplates: (state) => ['github', 'local'].includes(state.provider.selected),
+            model: (state) => state.threatmodel.data,
+            providerType: (state) => getProviderType(state.provider.selected),
+            version: (state) => state.packageBuildVersion,
+            panelOpen: (state) => !!(state.assistant && state.assistant.panelOpen)
+        }),
+        aiEnabled() {
+            // desktop is BYO-key (no backend /api/config), so the assistant is always
+            // available there; server mode gates on the llmEnabled config flag.
+            if (this.providerType === providerTypes.desktop) {
+                return true;
+            }
+            const cfg = (this.$store.state.config && this.$store.state.config.config) || {};
+            return !!cfg.llmEnabled;
+        },
+        assistantVisible() {
+            return this.panelOpen && this.aiEnabled;
+        }
+    },
     methods: {
         onEditClick(evt) {
             evt.preventDefault();
@@ -152,6 +191,9 @@ export default {
             this.$store.dispatch(tmActions.diagramSelected, diagram);
             const path = `${this.$route.path}/edit/${encodeURIComponent(diagram.title)}`;
             this.$router.push(path);
+        },
+        togglePanel() {
+            this.$store.dispatch(assistantActions.togglePanel);
         }
     },
     mounted() {
@@ -163,6 +205,14 @@ export default {
         this.$store.dispatch(tmActions.update, update);
         // if a diagram has just been closed, the history insists on marking the model as modified
         this.$store.dispatch(tmActions.notModified);
+        // arriving from the "create with AI" welcome tile (?assistant=1): open the panel
+        if (this.$route.query && this.$route.query.assistant && this.aiEnabled) {
+            this.$store.dispatch(assistantActions.setPanel, true);
+        }
+        editorContextReporter.report({
+            page: 'model',
+            modelTitle: this.model.summary && this.model.summary.title
+        });
     }
 };
 </script>

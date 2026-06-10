@@ -54,7 +54,7 @@ const actions = {
      * canvas binding. The binding + abort signal are supplied by the panel component
      * (they hold non-serializable references that must not live in store state).
      */
-    [ASSISTANT_SEND]: async ({ commit, state }, { text, binding, signal }) => {
+    [ASSISTANT_SEND]: async ({ commit, state }, { text, binding, signal, systemContext }) => {
         commit(ASSISTANT_ADD_MESSAGE, { role: 'user', content: [{ type: 'text', text }] });
         commit(ASSISTANT_STREAM_RESET);
         commit(ASSISTANT_TOOL_CLEAR);
@@ -71,6 +71,7 @@ const actions = {
                 model: state.model,
                 messages: working,
                 attachments,
+                systemContext,
                 signal,
                 callbacks: {
                     onText: (delta) => commit(ASSISTANT_STREAM_TEXT, delta),

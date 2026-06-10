@@ -28,6 +28,16 @@ const SYSTEM_PROMPT = [
     MODELING_GUIDANCE
 ].join('\n\n');
 
+// Extra system-prompt context for the threat model OVERVIEW page (model mode),
+// where the assistant operates on the whole model rather than one live canvas.
+const MODEL_MODE_CONTEXT = [
+    'The user is currently on the threat model OVERVIEW page, which shows a tile for every diagram in the model — they are NOT inside a diagram editor.',
+    'You operate on the WHOLE threat model. Call getModelSummary first to list the diagrams and their ids.',
+    'Tools that work inside a diagram require a diagramId argument. createDiagram adds a new data-flow diagram to the model.',
+    'Changes do not animate on this page — the user opens a diagram to see them.',
+    'This mode is well suited to bulk work across multiple diagrams (for example creating several diagrams, or adding threats throughout the model).'
+].join(' ');
+
 const stripDataUrl = (data) => (typeof data === 'string' && data.includes(',') ? data.slice(data.indexOf(',') + 1) : data);
 
 // Convert neutral UI attachments to normalized content blocks (Anthropic superset).
@@ -82,6 +92,7 @@ const safeParse = (json) => {
  * @param {string} options.model model id
  * @param {Array} options.messages conversation so far (mutated/extended in place)
  * @param {Array} [options.attachments] neutral attachments to merge into the last user turn
+ * @param {string} [options.systemContext] extra context appended to the system prompt (e.g. MODEL_MODE_CONTEXT)
  * @param {Array} [options.tools] tool definitions (defaults to @tmcore/tools.js toolDefinitions)
  * @param {AbortSignal} [options.signal]
  * @param {object} [options.proxy] transport (defaults to proxyClient), for testing
@@ -95,6 +106,7 @@ const runAgentLoop = async (options) => {
         model,
         messages,
         attachments = [],
+        systemContext = null,
         signal,
         tools = toolDefinitions,
         proxy = proxyClient,
@@ -104,12 +116,13 @@ const runAgentLoop = async (options) => {
     mergeAttachments(messages, attachments);
 
     const buildSystem = async () => {
+        const base = systemContext ? `${SYSTEM_PROMPT}\n\n${systemContext}` : SYSTEM_PROMPT;
         const summaryRes = await binding.execute('getModelSummary');
         const summary = summaryRes && summaryRes.ok ? summaryRes.result : null;
         if (!summary) {
-            return SYSTEM_PROMPT;
+            return base;
         }
-        return `${SYSTEM_PROMPT}\n\nCurrent model summary (JSON):\n${JSON.stringify(summary)}`;
+        return `${base}\n\nCurrent model summary (JSON):\n${JSON.stringify(summary)}`;
     };
 
     const consumeStream = async (request) => {
@@ -218,4 +231,4 @@ const runAgentLoop = async (options) => {
 };
 
 export default { runAgentLoop };
-export { runAgentLoop };
+export { runAgentLoop, MODEL_MODE_CONTEXT };

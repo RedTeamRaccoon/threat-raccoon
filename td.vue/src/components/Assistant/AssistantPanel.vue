@@ -87,7 +87,7 @@
             <div v-if="error" class="td-assistant-error">
                 {{ error }}
             </div>
-            <div v-if="!hasDiagram" class="td-assistant-hint">
+            <div v-if="mode === 'diagram' && !hasDiagram" class="td-assistant-hint">
                 {{ $t('assistant.noDiagram') }}
             </div>
 
@@ -109,6 +109,8 @@ import api from '@/service/api/api.js';
 import TdAssistantComposer from '@/components/Assistant/AssistantComposer.vue';
 import TdAssistantMessage from '@/components/Assistant/AssistantMessage.vue';
 import { createBinding } from '@/service/assistant/browserBinding.js';
+import { createModelBinding } from '@/service/assistant/modelBinding.js';
+import { MODEL_MODE_CONTEXT } from '@/service/assistant/agentLoop.js';
 import { PROVIDER_CATALOG } from '@/service/assistant/providerCatalog.js';
 import assistantActions from '@/store/actions/assistant.js';
 
@@ -119,8 +121,17 @@ export default {
         TdAssistantMessage
     },
     props: {
+        // the live X6 graph; only required in diagram mode
         graph: {
-            required: true
+            required: false,
+            default: null
+        },
+        // 'diagram' drives the live canvas of the open diagram (browserBinding);
+        // 'model' runs the pure tmcore ops against the whole stored model
+        // (modelBinding) — used on the threat model overview page
+        mode: {
+            type: String,
+            default: 'diagram'
         }
     },
     data() {
@@ -177,8 +188,14 @@ export default {
         hasDiagram() {
             return !!(this.selectedDiagram && this.selectedDiagram.diagramType);
         },
+        hasModel() {
+            const data = this.$store.state.threatmodel && this.$store.state.threatmodel.data;
+            return !!(data && data.summary);
+        },
         canSend() {
-            return this.aiConfig.enabled && this.hasDiagram && !!this.selectedProvider && !!this.selectedModel;
+            // model mode needs a loaded model; diagram mode needs an open diagram
+            const target = this.mode === 'model' ? this.hasModel : this.hasDiagram;
+            return this.aiConfig.enabled && target && !!this.selectedProvider && !!this.selectedModel;
         }
     },
     watch: {
@@ -294,11 +311,15 @@ export default {
         },
         send(text) {
             this.controller = new AbortController();
-            const binding = createBinding(this.graph, this.$store);
+            const modelMode = this.mode === 'model';
+            const binding = modelMode
+                ? createModelBinding(this.$store)
+                : createBinding(this.graph, this.$store);
             this.$store.dispatch(assistantActions.send, {
                 text,
                 binding,
-                signal: this.controller.signal
+                signal: this.controller.signal,
+                systemContext: modelMode ? MODEL_MODE_CONTEXT : undefined
             });
         },
         stop() {

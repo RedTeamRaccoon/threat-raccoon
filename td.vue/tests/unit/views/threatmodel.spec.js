@@ -4,7 +4,10 @@ import Vuex from 'vuex';
 
 import ThreatModel from '@/views/ThreatModel.vue';
 import ThreatModelSummaryCard from '@/components/ThreatModelSummaryCard.vue';
+import editorContextReporter from '@/service/assistant/editorContextReporter.js';
 import { THREATMODEL_DIAGRAM_SELECTED } from '@/store/actions/threatmodel.js';
+
+jest.mock('@/service/assistant/editorContextReporter.js', () => ({ report: jest.fn() }));
 
 describe('views/Threatmodel.vue', () => {
     const contributors = ['foo', 'bar' ];
@@ -71,6 +74,10 @@ describe('views/Threatmodel.vue', () => {
 
     it('shows the threat model summary', () => {
         expect(wrapper.findComponent(ThreatModelSummaryCard).exists()).toEqual(true);
+    });
+
+    it('reports the model editor context on mount', () => {
+        expect(editorContextReporter.report).toHaveBeenCalledWith({ page: 'model', modelTitle: title });
     });
 
     describe('form actions', () => {
