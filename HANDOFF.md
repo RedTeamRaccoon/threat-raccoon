@@ -227,6 +227,20 @@ Still open (in likely priority order for the work PC):
         OVERVIEW page with the panel auto-opened (`?assistant` handled in ThreatModel.vue mounted).
      Gates after the merge: tmcore 18, td.server mocha 585, td.vue jest 143 suites / 1567 tests, all green.
      Desktop nicety still open: desktop's in-app stdio MCP could surface editor context from renderer state.
+   - **Placement safety net + concrete spacing guidance (tmcore):** elements added without a position now land
+     on the next free grid slot (220x160) instead of stacking at the origin, and an explicit position dropped
+     on top of an existing component is nudged diagonally until clear — local collision avoidance only,
+     existing elements are never moved (algorithmic auto-layout remains deliberately rejected). The layout
+     guidance now gives models a concrete grid recipe and a 60px trust-boundary padding rule. tmcore tests now
+     **20**. Because this lives in the shared ops core, it benefits ALL bindings: in-app diagram mode, model
+     mode, and external MCP clients.
+   - **Long PDFs keep their text (images cap at 20 pages, text flows to a 250KB budget):** the first-20-pages
+     cap dropped most of a long spec's TEXT (a real 445-page design doc lost 95%). Text extraction now
+     continues past the image-page cap until a 250KB budget is spent; page images (the token-expensive part)
+     still cap at 20. The truncation note (in-chat warning and in the attached text itself) states exactly how
+     many pages of text and images were included, in en and zh. User's real corpus: mostly Chinese PDFs —
+     master spec 445 pages, section docs 8-41 pages; standing advice stands that for very long specs the
+     focused section PDFs are the better attachment.
 5. Ask for further UI/UX items.
 6. Optional: terser-flow-label guidance nudge (only low-risk lever for label overlap; auto-layout is off the table).
 
@@ -294,10 +308,12 @@ Note: `td.server` mocha must be run via `npm run test:unit` (a bare `mocha` invo
   markdown lint clean. Live E2E on the running server: config flag -> `/api/login/local` -> Copilot tool
   round-trip -> vision ("Red") all PASS. (Jest total differs from the older 1543/1545 notes in this doc;
   suites are fully green — treat PR CI as the arbiter.)
-- Working-tree changes this session (commit/push was permission-blocked — user to commit or ask for PRs;
-  suggested split: (a) launcher script + README/docs, (b) local-session auth + IV fix, (c) PDF/vision/i18n):
-  27 modified files + new `scripts/start-threatdragon.ps1`, `td.vue/src/service/assistant/pdfAttachments.js`,
-  `td.vue/tests/unit/service/assistant/pdfAttachments.spec.js`. `git status` is clean of EOL noise: an
-  `eslint --fix` pass had rewritten line endings repo-wide; unintended files were restored from the index.
+- All work is now **committed locally on `main`** (13 commits ahead of origin) — **push still pending user
+  action**. Late-session batch also included the assistant UX polish (one chip per PDF attachment, working
+  indicators while extracting/sending) and a live-verified `getEditorContext` round-trip (browser ->
+  `PUT /api/editor/context` -> MCP tool). Final gates: tmcore **20**, td.server mocha **585**, td.vue jest
+  **143 suites (1573+ tests)**, all green; vue production build clean. `git status` is clean of EOL noise: an
+  `eslint --fix` pass had rewritten line endings repo-wide; unintended files were restored from the index —
+  do NOT re-run `eslint --fix` repo-wide.
 - User's `.env` now has `LLM_LOCAL_SESSION=true` and a working Copilot `ghu_` token; `threat-model.json`
   seeded at repo root; Copilot CLI MCP wiring verified (interactive session still pending, §6.1).
