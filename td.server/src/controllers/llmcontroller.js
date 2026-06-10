@@ -101,7 +101,16 @@ const complete = async (req, res) => {
     }
 
     const controller = new AbortController();
-    req.on('close', () => controller.abort());
+    // Abort the upstream LLM call only when the CLIENT disconnects. Use the
+    // response's `close` (not the request's): under Express 5 `req`'s `close`
+    // fires as soon as the request body is consumed, which would abort the
+    // stream before any event is sent. `res` `close` fires on a real client
+    // disconnect, and at normal completion `writableEnded` is already true.
+    res.on('close', () => {
+        if (!res.writableEnded) {
+            controller.abort();
+        }
+    });
 
     await pipeStream(provider, buildNormalizedRequest(body), { signal: controller.signal, apiKey: userKey }, res);
     return res;
