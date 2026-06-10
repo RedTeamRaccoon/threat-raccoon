@@ -8,9 +8,9 @@
  * The token is the OAuth token the Copilot editor integrations use; Threat
  * Dragon's copilot adapter exchanges it for a short-lived Copilot bearer at
  * api.github.com/copilot_internal/v2/token. A classic Personal Access Token does
- * NOT work — it has no Copilot entitlement on that endpoint.
+ * NOT work - it has no Copilot entitlement on that endpoint.
  *
- * Cross-platform, no external dependencies (uses Node's global fetch — Node 18+).
+ * Cross-platform, no external dependencies (uses Node's global fetch - Node 18+).
  *
  * Usage:
  *   node scripts/get-copilot-token.mjs            # writes ../.env (repo root)
@@ -106,7 +106,7 @@ const upsertEnv = (file, updates) => {
         const example = path.join(repoRoot, 'example.env');
         if (fs.existsSync(example)) {
             lines = fs.readFileSync(example, 'utf8').split(/\r?\n/);
-            console.log(`No .env found — created one from example.env at ${file}`);
+            console.log(`No .env found - created one from example.env at ${file}`);
         }
     }
     for (const [key, value] of Object.entries(updates)) {
@@ -121,20 +121,20 @@ const upsertEnv = (file, updates) => {
 };
 
 const main = async () => {
-    console.log('\n  Threat Dragon — GitHub Copilot token setup\n  ==========================================\n');
-    console.log('  Requesting a device code from GitHub…');
+    console.log('\n  Threat Dragon - GitHub Copilot token setup\n  ==========================================\n');
+    console.log('  Requesting a device code from GitHub...');
     const device = await requestDeviceCode();
 
     console.log('\n  1. Open this URL in your browser:  ' + (device.verification_uri || 'https://github.com/login/device'));
     console.log('  2. Enter this one-time code:       ' + device.user_code);
     console.log('  3. Approve access for GitHub Copilot.\n');
-    console.log('  Waiting for you to authorize… (this window will continue automatically)\n');
+    console.log('  Waiting for you to authorize... (this window will continue automatically)\n');
 
     const token = await pollForToken(device.device_code, device.interval || 5, device.expires_in || 900);
 
-    process.stdout.write('  Verifying Copilot entitlement… ');
+    process.stdout.write('  Verifying Copilot entitlement... ');
     const entitled = await verifyCopilotEntitlement(token);
-    console.log(entitled ? 'OK ✓' : 'WARNING: this account does not appear to have Copilot access.');
+    console.log(entitled ? 'OK' : 'WARNING: this account does not appear to have Copilot access.');
 
     upsertEnv(envPath, {
         LLM_COPILOT_API_KEY: token,
@@ -148,7 +148,7 @@ const main = async () => {
     }
 
     console.log('\n  Saved to ' + envPath + ':');
-    console.log('    LLM_COPILOT_API_KEY=' + (wantPrint ? token : token.slice(0, 7) + '…' + token.slice(-4)));
+    console.log('    LLM_COPILOT_API_KEY=' + (wantPrint ? token : token.slice(0, 7) + '...' + token.slice(-4)));
     console.log('    LLM_ENABLED=true');
     console.log('    LLM_PROVIDER=copilot');
     if (!entitled) {
@@ -159,6 +159,6 @@ const main = async () => {
 };
 
 main().catch((e) => {
-    console.error('\n  ✗ ' + e.message + '\n');
+    console.error('\n  ERROR: ' + e.message + '\n');
     process.exit(1);
 });

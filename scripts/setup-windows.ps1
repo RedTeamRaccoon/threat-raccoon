@@ -35,7 +35,7 @@ function Ensure-WingetPackage($id, $exe, $friendly) {
         Write-Ok "$friendly already installed."
         return $true
     }
-    Write-Step "Installing $friendly ($id) via winget…"
+    Write-Step "Installing $friendly ($id) via winget..."
     try {
         # Out-Host keeps winget's output on the console and OUT of this function's
         # return value (which callers read as a boolean).
@@ -52,7 +52,7 @@ function Ensure-WingetPackage($id, $exe, $friendly) {
     return $false
 }
 
-Write-Host "Threat Dragon + GitHub Copilot — Windows 11 setup" -ForegroundColor White
+Write-Host "Threat Dragon + GitHub Copilot - Windows 11 setup" -ForegroundColor White
 Write-Host "Repo: $repoRoot"
 
 # 1. Prerequisites ----------------------------------------------------------
@@ -69,13 +69,13 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 Write-Ok ("node " + (node --version) + " / npm " + (npm --version))
 
 # 2. Install + build Threat Dragon -----------------------------------------
-Write-Step "Installing dependencies (td.server, td.vue, shared/tmcore)…"
+Write-Step "Installing dependencies (td.server, td.vue, shared/tmcore)..."
 Push-Location $repoRoot
 try {
     npm install
     Write-Ok "Dependencies installed."
 
-    Write-Step "Building the Threat Dragon MCP server…"
+    Write-Step "Building the Threat Dragon MCP server..."
     npm run build:server
     Write-Ok "MCP server built -> td.server\dist\mcp\stdioEntry.js"
 
@@ -89,8 +89,8 @@ try {
     }
 
     # 4. Copilot token for the in-app assistant ----------------------------
-    Write-Step "Generating a GitHub Copilot token for the Threat Dragon assistant…"
-    Write-Warn2 "A browser code will be shown — approve it to link your Copilot subscription."
+    Write-Step "Generating a GitHub Copilot token for the Threat Dragon assistant..."
+    Write-Warn2 "A browser code will be shown - approve it to link your Copilot subscription."
     node (Join-Path $repoRoot 'scripts\get-copilot-token.mjs')
 
     # 5. Wire the Copilot CLI to Threat Dragon's MCP server ----------------
@@ -101,7 +101,7 @@ try {
         Write-Ok "Created a blank model at $modelPath"
     }
     if ($haveCopilotCli) {
-        Write-Step "Registering Threat Dragon with the GitHub Copilot CLI…"
+        Write-Step "Registering Threat Dragon with the GitHub Copilot CLI..."
         $copilotHome = Join-Path $env:USERPROFILE '.copilot'
         New-Item -ItemType Directory -Force -Path $copilotHome | Out-Null
         $mcpConfigPath = Join-Path $copilotHome 'mcp-config.json'
@@ -122,7 +122,7 @@ try {
         $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $mcpConfigPath -Encoding UTF8
         Write-Ok "Wrote $mcpConfigPath (server 'threat-dragon')"
     } else {
-        Write-Warn2 "GitHub Copilot CLI not found — skipped MCP wiring. Install it, then re-run, or add the server manually (see docs/usage/ai-assistant.md)."
+        Write-Warn2 "GitHub Copilot CLI not found - skipped MCP wiring. Install it, then re-run, or add the server manually (see docs/usage/ai-assistant.md)."
     }
 }
 finally {
@@ -133,7 +133,7 @@ finally {
 Write-Step "Setup complete. You're off to the races."
 Write-Host @"
 
-  Two ways to use GitHub Copilot with Threat Dragon — both keep data on Copilot only:
+  Two ways to use GitHub Copilot with Threat Dragon - both keep data on Copilot only:
 
   A) GitHub Copilot CLI -> Threat Dragon MCP (recommended, no Threat Dragon login):
        copilot
