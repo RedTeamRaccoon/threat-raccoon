@@ -208,6 +208,25 @@ Still open (in likely priority order for the work PC):
      auto-picks an available model; if the fetch fails it falls back to the env list (old behavior). Desktop
      (BYO key, no backend) still uses the static `providerCatalog.js` — extending live lists to the desktop
      relay is an open nicety.
+   - **Assistant everywhere + MCP editor awareness (user-requested trio, built via two parallel subagents):**
+     1. *Editor context -> MCP*: browser reports the open page/model/diagram (`editorContextReporter.js`, hooks
+        in ThreatModel/DiagramEdit/MainDashboard; only when a JWT exists, never on desktop) to JWT-gated
+        `PUT /api/editor/context` (`editorContext.helper.js` sanitizes + stamps `updatedAt`, persists
+        best-effort to `%USERPROFILE%\.threat-dragon\editor-context.json`, override `TD_EDITOR_CONTEXT_FILE`).
+        New MCP tool `getEditorContext` on BOTH transports: stdio reads the state file (separate process!),
+        HTTP reads memory-then-file. Tool description teaches stale-context fallback to getModelSummary.
+     2. *Model-overview chat pane*: AssistantPanel gained `mode="model"` — binding is `modelBinding.js`, which
+        runs the REAL tmcore ops against a clone of `state.threatmodel.data` then dispatches new
+        `THREATMODEL_DATA_REPLACED` (+ modified; stash untouched). tmcore's node-only `validate.js` is swapped
+        for a browser shim (`tmcoreValidate.js` via webpack NormalModuleReplacementPlugin + jest mapper) so the
+        ONE ops core truly runs in the browser. `MODEL_MODE_CONTEXT` system-prompt suffix tells the model it's
+        on the overview page (bulk work, diagramId required, getModelSummary first). Panel mounted on
+        ThreatModel.vue (robot toggle, lg 9/3 split); conversation persists across pages.
+     3. *Welcome tile*: 'Create a Threat Model with AI assistance' (robot icon, FIRST tile, local+desktop
+        providers, en+zh i18n) -> `/local/threatmodel/new?assistant=1` -> NewThreatModel routes to the model
+        OVERVIEW page with the panel auto-opened (`?assistant` handled in ThreatModel.vue mounted).
+     Gates after the merge: tmcore 18, td.server mocha 585, td.vue jest 143 suites / 1567 tests, all green.
+     Desktop nicety still open: desktop's in-app stdio MCP could surface editor context from renderer state.
 5. Ask for further UI/UX items.
 6. Optional: terser-flow-label guidance nudge (only low-risk lever for label overlap; auto-layout is off the table).
 
