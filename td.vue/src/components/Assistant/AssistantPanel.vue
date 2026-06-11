@@ -196,7 +196,15 @@ export default {
             return this.aiConfig.providers.map((p) => ({ value: p.id, text: p.label || p.id }));
         },
         modelOptions() {
-            return this.availableModelIds(this.selectedProvider).map((id) => ({ value: id, text: id }));
+            const ids = this.availableModelIds(this.selectedProvider);
+            // While the live list for this provider is still pending, the env list
+            // is only provisional — surface the stored/selected pick too so the
+            // select can display it (the option must exist for v-model to show it).
+            if (this.selectedModel && !ids.includes(this.selectedModel)
+                && !this.hasLiveModels(this.selectedProvider)) {
+                return [this.selectedModel, ...ids].map((id) => ({ value: id, text: id }));
+            }
+            return ids.map((id) => ({ value: id, text: id }));
         },
         hasDiagram() {
             return !!(this.selectedDiagram && this.selectedDiagram.diagramType);
@@ -260,6 +268,10 @@ export default {
             this.$store.dispatch(assistantActions.setProvider, this.selectedProvider);
             this.applyDefaultModel();
         },
+        hasLiveModels(providerId) {
+            const live = this.liveModels[providerId];
+            return !!(live && live.length);
+        },
         availableModelIds(providerId) {
             // live (account-accurate) list when fetched; env-configured fallback
             const live = this.liveModels[providerId];
@@ -273,12 +285,24 @@ export default {
         applyDefaultModel() {
             const provider = this.aiConfig.providers.find((p) => p.id === this.selectedProvider);
             const ids = this.availableModelIds(this.selectedProvider);
+            const stored = this.$store.state.assistant.model;
+            // Persisted/stored pick + env-only list still pending the live fetch:
+            // the env list is NOT authoritative about what the account offers, so
+            // do NOT clobber the user's stored model. Keep it (modelOptions surfaces
+            // it) until fetchLiveModels arrives and re-validates against the real
+            // list — on live-fetch success applyDefaultModel runs again; on failure
+            // the env list stays non-authoritative and the pick is kept.
+            if (stored && !this.hasLiveModels(this.selectedProvider)) {
+                this.selectedModel = stored;
+                this.$store.dispatch(assistantActions.setModel, stored);
+                return;
+            }
             // Pick the first candidate that the SELECTED provider actually offers,
             // so switching providers never leaves a model from another provider
             // (e.g. the global default) selected — which the server would reject.
             // With a live list this also walks past a retired configured default.
             const providerDefault = provider && provider.default;
-            const candidates = [this.$store.state.assistant.model, providerDefault, this.aiConfig.defaultModel];
+            const candidates = [stored, providerDefault, this.aiConfig.defaultModel];
             const picked = candidates.find((m) => m && ids.includes(m)) || ids[0] || null;
             this.selectedModel = picked;
             this.$store.dispatch(assistantActions.setModel, picked);

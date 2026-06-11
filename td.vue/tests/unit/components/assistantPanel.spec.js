@@ -204,4 +204,66 @@ describe('components/Assistant/AssistantPanel.vue', () => {
             expect(api.getAsync).toHaveBeenCalledWith('/api/llm/models/openai');
         });
     });
+
+    // The chat (provider/model/messages) is persisted to sessionStorage and
+    // restored on the next page load. A restored model pick may not be in the
+    // env-configured fallback list (the env list is not authoritative about what
+    // the account offers) — mounting must NOT clobber it before the live list
+    // arrives.
+    describe('restored model selection (persistence clobber regression)', () => {
+        it('keeps a stored model not in the env list while the live list is pending', () => {
+            // live fetch stays unresolved (rejected default) -> only env list known
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'anthropic', model: 'claude-sonnet-4-6' }
+            });
+            // env list for anthropic is only [claude-opus-4-8] but the stored pick
+            // must survive mount and be offered by the select
+            expect(wrapper.vm.selectedModel).toBe('claude-sonnet-4-6');
+            expect(wrapper.vm.modelOptions.map((o) => o.value)).toContain('claude-sonnet-4-6');
+        });
+
+        it('does not dispatch a different model over the stored pick on mount', () => {
+            const { store } = mountPanel({
+                assistant: { provider: 'anthropic', model: 'claude-sonnet-4-6' }
+            });
+            const setModelCalls = store.dispatch.mock.calls
+                .filter(([action]) => action === 'ASSISTANT_SET_MODEL')
+                .map(([, value]) => value);
+            // it may re-affirm the stored pick, but must never set anything else
+            expect(setModelCalls.every((m) => m === 'claude-sonnet-4-6')).toBe(true);
+        });
+
+        it('replaces the stored pick once the live list arrives WITHOUT it', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: ['claude-opus-4-8', 'claude-haiku-4-5'] } });
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'anthropic', model: 'claude-sonnet-4-6' }
+            });
+            await flush();
+
+            // claude-sonnet-4-6 is not offered by the account -> fall to a real one
+            expect(wrapper.vm.selectedModel).toBe('claude-opus-4-8');
+            expect(wrapper.vm.modelOptions.map((o) => o.value))
+                .toEqual(['claude-opus-4-8', 'claude-haiku-4-5']);
+        });
+
+        it('keeps the stored pick once the live list arrives WITH it', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: ['claude-opus-4-8', 'claude-sonnet-4-6'] } });
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'anthropic', model: 'claude-sonnet-4-6' }
+            });
+            await flush();
+
+            expect(wrapper.vm.selectedModel).toBe('claude-sonnet-4-6');
+        });
+
+        it('keeps the stored pick when the live fetch fails (env list not authoritative)', async () => {
+            // default beforeEach rejects the live fetch
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'anthropic', model: 'claude-sonnet-4-6' }
+            });
+            await flush();
+
+            expect(wrapper.vm.selectedModel).toBe('claude-sonnet-4-6');
+        });
+    });
 });
