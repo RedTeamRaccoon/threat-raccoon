@@ -26,7 +26,7 @@
                         <b-card :header="$t('threatmodel.description')">
                             <b-row class="tm-card">
                                 <b-col>
-                                    <p id="tm_description">{{ model.summary.description }}</p>
+                                    <td-markdown id="tm_description" :text="model.summary.description" />
                                 </b-col>
                             </b-row>
                         </b-card>
@@ -52,9 +52,11 @@
                                     lazy
                                 />
                             </a>
-                            <h6 v-if=diagram.description class="diagram-description-text">
-                                {{ diagram.description }}
-                            </h6>
+                            <td-markdown
+                                v-if="diagram.description"
+                                class="diagram-description-text"
+                                :text="diagram.description"
+                            />
                         </b-card>
                     </b-col>
                 </b-row>
@@ -123,6 +125,7 @@ import TdAssistantPanel from '@/components/Assistant/AssistantPanel.vue';
 import TdDropdown from '@/components/Dropdown.vue';
 import TdFormButton from '@/components/FormButton.vue';
 import TdImage from '@/components/Image.vue';
+import TdMarkdown from '@/components/Markdown.vue';
 import TdThreatModelSummaryCard from '@/components/ThreatModelSummaryCard.vue';
 import assistantActions from '@/store/actions/assistant.js';
 import editorContextReporter from '@/service/assistant/editorContextReporter.js';
@@ -135,6 +138,7 @@ export default {
         TdDropdown,
         TdFormButton,
         TdImage,
+        TdMarkdown,
         TdThreatModelSummaryCard
     },
     computed: {

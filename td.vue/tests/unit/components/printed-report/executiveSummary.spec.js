@@ -30,6 +30,9 @@ describe('components/printed-report/ExecutiveSummary.vue', () => {
                 summary: data.summary,
                 threats: data.threats
             },
+            stubs: {
+                TdMarkdown: { props: ['text'], template: '<span>{{ text }}</span>' }
+            },
             mocks: {
                 $t: t => t
             }

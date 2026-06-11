@@ -7,9 +7,9 @@
                     <h2 class="td-diagram-title">{{ diagram.title }}</h2>
                 </b-col>
             </b-row>
-            <b-row class="mt-3">
+            <b-row class="mt-3" v-if="diagram.description">
                 <b-col>
-                    <p class="td-diagram-title">{{ diagram.description }}</p>
+                    <td-markdown class="td-diagram-description" :text="diagram.description" />
                 </b-col>
             </b-row>
             <b-row v-if="showDiagram" class="mt-3 page diagram-drawing">
@@ -60,6 +60,7 @@
 </style>
 
 <script>
+import TdMarkdown from '@/components/Markdown.vue';
 import TdPrintReportEntity from '@/components/printed-report/ReportEntity.vue';
 import TdReadOnlyDiagram from '@/components/ReadOnlyDiagram.vue';
 import TdReportEntity from '@/components/report/ReportEntity.vue';
@@ -90,6 +91,7 @@ export default {
         }
     },
     components: {
+        TdMarkdown,
         TdPrintReportEntity,
         TdReadOnlyDiagram,
         TdReportEntity

@@ -4,8 +4,14 @@
             {{ `${entity.data.name.replaceAll('\n', ' ')} (${dataType})` }}
             <em v-if="outOfScope">- {{ $t('threatmodel.properties.outOfScope') }}</em>
         </div>
-        <p class="entity-description" v-if="outOfScope"><b>{{ $t('threatmodel.properties.reasonOutOfScope') }}:</b> {{ entity.data.reasonOutOfScope }}</p>
-        <p class="entity-description" v-if="entity.data.description">{{ $t('threatmodel.properties.description') }}: {{ entity.data.description }}</p>
+        <div class="entity-description" v-if="outOfScope">
+            <b>{{ $t('threatmodel.properties.reasonOutOfScope') }}:</b>
+            <td-markdown :text="entity.data.reasonOutOfScope" />
+        </div>
+        <div class="entity-description" v-if="entity.data.description">
+            <b>{{ $t('threatmodel.properties.description') }}:</b>
+            <td-markdown :text="entity.data.description" />
+        </div>
         <p class="entity-description" v-if="showProperties">{{ properties }}</p>
         <table class="table">
             <thead>
@@ -31,8 +37,8 @@
                     <td>{{ translateSeverity(threat.severity) }}</td>
                     <td>{{ translateStatus(threat.status) }}</td>
                     <td>{{ threat.score }}</td>
-                    <td>{{ threat.description }}</td>
-                    <td>{{ threat.mitigation }}</td>
+                    <td><td-markdown :text="threat.description" /></td>
+                    <td><td-markdown :text="threat.mitigation" /></td>
                 </tr>
             </tbody>
         </table>
@@ -57,13 +63,26 @@
     padding: 15px;
     white-space: pre-wrap;
 }
+
+// keep markdown compact inside the threats table cells
+.table td :deep(.td-markdown) {
+    white-space: normal;
+
+    p {
+        margin: 0;
+    }
+}
 </style>
 
 <script>
 import threatService from '@/service/threats/index.js';
+import TdMarkdown from '@/components/Markdown.vue';
 
 export default {
     name: 'TdPrintReportEntity',
+    components: {
+        TdMarkdown
+    },
     props: {
         entity: Object,
         outOfScope: {

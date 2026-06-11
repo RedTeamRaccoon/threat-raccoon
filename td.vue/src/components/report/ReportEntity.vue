@@ -10,12 +10,18 @@
         </b-row>
         <b-row v-if="outOfScope">
             <b-col>
-                <p class="entity-description"><b>{{ $t('threatmodel.properties.reasonOutOfScope') }}:</b> {{ entity.data.reasonOutOfScope }}</p>
+                <div class="entity-description">
+                    <b>{{ $t('threatmodel.properties.reasonOutOfScope') }}:</b>
+                    <td-markdown :text="entity.data.reasonOutOfScope" />
+                </div>
             </b-col>
         </b-row>
         <b-row v-if="entity.data.description || showProperties">
             <b-col>
-                <p class="entity-description" v-if="entity.data.description">{{ $t('threatmodel.properties.description') }}: {{ entity.data.description }}</p>
+                <div class="entity-description" v-if="entity.data.description">
+                    <b>{{ $t('threatmodel.properties.description') }}:</b>
+                    <td-markdown :text="entity.data.description" />
+                </div>
                 <p class="entity-description" v-if="showProperties">{{ properties }}</p>
             </b-col>
         </b-row>
@@ -23,9 +29,16 @@
             <b-col md="12">
                 <b-table
                     :data-test-id="entity.data.name.replace(' ', '_')"
+                    :fields="fields"
                     :items="tableData"
                     striped
                     responsive>
+                    <template #cell(description)="row">
+                        <td-markdown class="td-cell-markdown" :text="row.value" />
+                    </template>
+                    <template #cell(mitigation)="row">
+                        <td-markdown class="td-cell-markdown" :text="row.value" />
+                    </template>
                 </b-table>
             </b-col>
         </b-row>
@@ -49,13 +62,26 @@
     padding: 15px;
     white-space: pre-wrap;
 }
+
+// keep markdown compact inside the threats table cells
+.td-cell-markdown {
+    white-space: normal;
+
+    :deep(p) {
+        margin: 0;
+    }
+}
 </style>
 
 <script>
 import threatService from '@/service/threats/index.js';
+import TdMarkdown from '@/components/Markdown.vue';
 
 export default {
     name: 'TdReportEntity',
+    components: {
+        TdMarkdown
+    },
     props: {
         entity: Object,
         outOfScope: {
@@ -80,21 +106,32 @@ export default {
             const entityType = this.entity.data.type.replace('tm.', '').replace('td.', '');
             return this.$t(`threatmodel.shapes.${this.toCamelCase(entityType)}`);
         },
+        fields: function () {
+            return [
+                { key: 'number', label: this.$t('threats.properties.number') },
+                { key: 'title', label: this.$t('threats.properties.title') },
+                { key: 'type', label: this.$t('threats.properties.type') },
+                { key: 'severity', label: this.$t('threats.properties.severity') },
+                { key: 'status', label: this.$t('threats.properties.status') },
+                { key: 'score', label: this.$t('threats.properties.score') },
+                { key: 'description', label: this.$t('threats.properties.description') },
+                { key: 'mitigation', label: this.$t('threats.properties.mitigation') }
+            ];
+        },
         tableData: function () {
             return threatService.filterForDiagram(this.entity.data, {
                 showMitigated: this.showMitigated,
                 showOutOfScope: this.showOutOfScope
             }).map((threat) => {
                 return {
-                    [this.$t('threats.properties.number')]: threat.number,
-                    [this.$t('threats.properties.title')]: threat.title,
-                    [this.$t('threats.properties.type')]: threat.type,
-                    [this.$t('threats.properties.severity')]: this.translateSeverity(threat.severity),
-                    [this.$t('threats.properties.status')]: this.translateStatus(threat.status),
-                    [this.$t('threats.properties.score')]: threat.score,
-                    [this.$t('threats.properties.description')]: threat.description,
-                    [this.$t('threats.properties.mitigation')]: threat.mitigation
-
+                    number: threat.number,
+                    title: threat.title,
+                    type: threat.type,
+                    severity: this.translateSeverity(threat.severity),
+                    status: this.translateStatus(threat.status),
+                    score: threat.score,
+                    description: threat.description,
+                    mitigation: threat.mitigation
                 };
             });
         },

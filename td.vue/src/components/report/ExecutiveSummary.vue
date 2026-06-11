@@ -4,7 +4,10 @@
             <b-col>
                 <b-card :header="$t('report.executiveSummary')">
                     <h3 class="td-description-title">{{ $t('threatmodel.description') }}</h3>
-                    <p class="td-summary">{{ summary || $t('report.notProvided') }}</p>
+                    <div class="td-summary">
+                        <td-markdown v-if="summary" :text="summary" />
+                        <template v-else>{{ $t('report.notProvided') }}</template>
+                    </div>
 
                     <h3 class="td-report-summary">{{ $t('report.summary') }}</h3>
                     <b-table
@@ -27,8 +30,13 @@
 </style>
 
 <script>
+import TdMarkdown from '@/components/Markdown.vue';
+
 export default {
     name: 'TdExecutiveSummary',
+    components: {
+        TdMarkdown
+    },
     props: {
         summary: {
             type: String,

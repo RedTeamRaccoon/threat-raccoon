@@ -7,7 +7,8 @@
             {{ $t('threatmodel.description') }}
         </div>
         <div class="mt-2 td-summary">
-            {{ summary || $t('report.notProvided') }}
+            <td-markdown v-if="summary" :text="summary" />
+            <template v-else>{{ $t('report.notProvided') }}</template>
         </div>
         <div class="page-subtitle td-report-summary">
             {{ $t('report.summary') }}
@@ -70,8 +71,13 @@
 </style>
 
 <script>
+import TdMarkdown from '@/components/Markdown.vue';
+
 export default {
     name: 'TdPrintExecutiveSummary',
+    components: {
+        TdMarkdown
+    },
     props: {
         summary: {
             type: String,

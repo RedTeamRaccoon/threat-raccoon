@@ -56,6 +56,9 @@ describe('components/printed-report/ReportEntity.vue', () => {
                 outOfScope: data.outOfScope,
                 entity: data.entity
             },
+            stubs: {
+                TdMarkdown: { props: ['text'], template: '<span>{{ text }}</span>' }
+            },
             mocks: {
                 $t: t => t
             }
