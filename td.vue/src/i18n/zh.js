@@ -533,6 +533,7 @@ const messages = {
         empty: '描述你的系统或分享设计文档，然后让我为你构建威胁模型。',
         noDiagram: '打开一个图表，开始协作构建威胁模型。',
         working: '助手正在处理…',
+        sections: '正在处理第 {current}/{total} 部分 - {name}',
         roles: {
             you: '你',
             assistant: '助手'
@@ -549,6 +550,7 @@ const messages = {
             tooLarge: '附件超出大小限制。请先移除部分附件再发送。',
             pdfFailed: '无法读取附加的 PDF。请尝试重新导出，或直接粘贴文本。',
             pdfTruncated: 'PDF 较长：已附加前 {textPages} 页（共 {total} 页）的文本和前 {imagePages} 页的页面图像。如需完整覆盖，请附加最相关的章节。',
+            pdfChunked: 'PDF 较长：将分为 {sections} 个部分依次处理。',
             reading: '正在读取 PDF…',
             pages: '{count} 页'
         },

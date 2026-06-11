@@ -186,11 +186,17 @@ export default {
             this.pdfWarningParams = {};
             this.pdfBusy = true;
             try {
-                const { attachments, truncated, textPages, imagePages, pageCount } = await extractPdfAttachments(file);
+                const { attachments, truncated, textPages, imagePages, pageCount, sections } =
+                    await extractPdfAttachments(file);
                 attachments.forEach((attachment) => this.addAttachment(attachment));
                 if (truncated) {
                     this.pdfWarning = 'pdfTruncated';
                     this.pdfWarningParams = { textPages, imagePages, total: pageCount };
+                } else if (sections > 1) {
+                    // the whole document fits, but it will be ingested in
+                    // sections, one request after another
+                    this.pdfWarning = 'pdfChunked';
+                    this.pdfWarningParams = { sections };
                 }
             } catch (e) {
                 console.error('PDF extraction failed', e);

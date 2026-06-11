@@ -16,12 +16,44 @@ import {
     ASSISTANT_TOOL_CLEAR,
     ASSISTANT_SET_RUN_STATE,
     ASSISTANT_SET_ERROR,
+    ASSISTANT_SECTION_PROGRESS,
     ASSISTANT_SEND,
     ASSISTANT_CLEAR
 } from '@/store/actions/assistant.js';
 import { runAgentLoop } from '@/service/assistant/agentLoop.js';
 
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
+
+// any conversation text block longer than this is a raw document section (user
+// prose never gets near it) — the only thing worth pruning once incorporated
+const BULKY_BLOCK_THRESHOLD = 50000;
+
+/**
+ * Replaces the bulky raw text of an already-ingested document section with a
+ * short omission stub, so the conversation stays bounded while the threat model
+ * itself (re-injected into every request's system prompt) carries the memory.
+ * Section 1 rides in the attachment block (starts with `Attached document`),
+ * later sections in the continuation messages ASSISTANT_SEND pushes — either
+ * way it is the only user text block longer than the bulky threshold.
+ * @param {Array} messages conversation (mutated in place)
+ * @param {{ index: Number, total: Number, name: String }} section the section just ingested
+ * @returns {Boolean} true when a block was pruned
+ */
+export const pruneIngestedSection = (messages, { index, total, name }) => {
+    for (const message of messages) {
+        if (message.role !== 'user' || !Array.isArray(message.content)) {
+            continue;
+        }
+        for (const block of message.content) {
+            if (block.type === 'text' && typeof block.text === 'string'
+                && block.text.length > BULKY_BLOCK_THRESHOLD) {
+                block.text = `[Section ${index}/${total} of "${name}" omitted - already incorporated into the threat model.]`;
+                return true;
+            }
+        }
+    }
+    return false;
+};
 
 const initialState = () => ({
     panelOpen: false,
@@ -34,7 +66,10 @@ const initialState = () => ({
     runState: 'idle',
     attachments: [],
     error: null,
-    abortRequested: false
+    abortRequested: false,
+    // { current, total, name } while a chunked document section is being fed
+    // to the agent; null otherwise
+    sectionProgress: null
 });
 
 const state = initialState();
@@ -63,28 +98,64 @@ const actions = {
 
         const working = clone(state.messages);
         const attachments = clone(state.attachments);
+        // sections 2..N of chunked documents (long PDFs): fed to the agent one
+        // at a time AFTER the previous run completed, because the agent's
+        // updated model summary (re-injected into every request's system
+        // prompt) is the memory that carries continuity between sections
+        const pendingSections = attachments.flatMap((a) =>
+            (a.pendingSections || []).map((s) => ({ ...s, name: a.name || 'document' })));
+
+        const runLoop = (extra) => runAgentLoop({
+            binding,
+            provider: state.provider,
+            model: state.model,
+            messages: working,
+            systemContext,
+            signal,
+            callbacks: {
+                onText: (delta) => commit(ASSISTANT_STREAM_TEXT, delta),
+                onToolUseStart: (call) => commit(ASSISTANT_TOOL_START, call),
+                onToolResult: (result) => commit(ASSISTANT_TOOL_RESULT, result),
+                onTurnComplete: (message) => {
+                    commit(ASSISTANT_ADD_MESSAGE, message);
+                    commit(ASSISTANT_STREAM_RESET);
+                },
+                onToolResults: (message) => commit(ASSISTANT_ADD_MESSAGE, message)
+            },
+            ...extra
+        });
 
         try {
-            await runAgentLoop({
-                binding,
-                provider: state.provider,
-                model: state.model,
-                messages: working,
-                attachments,
-                systemContext,
-                signal,
-                callbacks: {
-                    onText: (delta) => commit(ASSISTANT_STREAM_TEXT, delta),
-                    onToolUseStart: (call) => commit(ASSISTANT_TOOL_START, call),
-                    onToolResult: (result) => commit(ASSISTANT_TOOL_RESULT, result),
-                    onTurnComplete: (message) => {
-                        commit(ASSISTANT_ADD_MESSAGE, message);
-                        commit(ASSISTANT_STREAM_RESET);
-                    },
-                    onToolResults: (message) => commit(ASSISTANT_ADD_MESSAGE, message)
-                }
-            });
+            await runLoop({ attachments });
             commit(ASSISTANT_CLEAR_ATTACHMENTS);
+            for (const section of pendingSections) {
+                if ((signal && signal.aborted) || state.error) {
+                    break;
+                }
+                // the previous section is in the model now: drop its raw text
+                // from the conversation so context stays bounded
+                pruneIngestedSection(working, {
+                    index: section.index - 1,
+                    total: section.total,
+                    name: section.name
+                });
+                working.push({
+                    role: 'user',
+                    content: [{
+                        type: 'text',
+                        text: `Continuing the attached document "${section.name}" - section ${section.index}/${section.total}`
+                            + ` (pages ${section.pageRange}):\n\n${section.text}\n\nIncorporate this section into the`
+                            + ' threat model the same way; the current model state is in your system prompt.'
+                    }]
+                });
+                commit(ASSISTANT_SECTION_PROGRESS, {
+                    current: section.index,
+                    total: section.total,
+                    name: section.name
+                });
+                // eslint-disable-next-line no-await-in-loop
+                await runLoop({});
+            }
         } catch (err) {
             if (!err || err.name !== 'AbortError') {
                 commit(ASSISTANT_SET_ERROR, err && err.message ? err.message : String(err));
@@ -92,6 +163,7 @@ const actions = {
         } finally {
             commit(ASSISTANT_STREAM_RESET);
             commit(ASSISTANT_TOOL_CLEAR);
+            commit(ASSISTANT_SECTION_PROGRESS, null);
             commit(ASSISTANT_SET_RUN_STATE, 'idle');
         }
     }
@@ -156,6 +228,9 @@ const mutations = {
     },
     [ASSISTANT_SET_ERROR]: (state, error) => {
         state.error = error;
+    },
+    [ASSISTANT_SECTION_PROGRESS]: (state, progress) => {
+        state.sectionProgress = progress;
     },
     [ASSISTANT_CLEAR]: (state) => {
         Object.assign(state, initialState());

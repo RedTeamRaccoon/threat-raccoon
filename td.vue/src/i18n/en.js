@@ -548,6 +548,7 @@ const messages = {
         empty: 'Describe your system or share a design document, then ask me to build a threat model.',
         noDiagram: 'Open a diagram to start collaborating on a threat model.',
         working: 'The assistant is working…',
+        sections: 'Processing section {current} of {total} - {name}',
         roles: {
             you: 'You',
             assistant: 'Assistant'
@@ -564,6 +565,7 @@ const messages = {
             tooLarge: 'Attachments exceed the size limit. Please remove some before sending.',
             pdfFailed: 'Could not read the attached PDF. Try exporting it again or paste the text instead.',
             pdfTruncated: 'Long PDF: attached the text of the first {textPages} of {total} pages and page images for the first {imagePages}. For full coverage attach the most relevant section.',
+            pdfChunked: 'Long PDF: it will be processed in {sections} sections, one after another.',
             reading: 'Reading the PDF…',
             pages: '{count} pages'
         },

@@ -2,6 +2,9 @@ import { BootstrapVue } from 'bootstrap-vue';
 import { mount, createLocalVue } from '@vue/test-utils';
 
 import TdAssistantComposer from '@/components/Assistant/AssistantComposer.vue';
+import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
+
+jest.mock('@/service/assistant/pdfAttachments.js', () => ({ extractPdfAttachments: jest.fn() }));
 
 describe('components/Assistant/AssistantComposer.vue', () => {
     const mountComposer = (propsData = { busy: false, canSend: true }, attachments = []) => {
@@ -57,6 +60,54 @@ describe('components/Assistant/AssistantComposer.vue', () => {
         await wrapper.setData({ text: 'go', pdfBusy: true });
         wrapper.vm.submit();
         expect(wrapper.emitted('send')).toBeUndefined();
+    });
+
+    describe('pdf extraction notices', () => {
+        const pdfFile = { name: 'spec.pdf', type: 'application/pdf' };
+
+        it('shows the chunked notice when the doc splits into sections without truncation', async () => {
+            extractPdfAttachments.mockResolvedValue({
+                attachments: [],
+                truncated: false,
+                sections: 3,
+                textPages: 30,
+                imagePages: 20,
+                pageCount: 30
+            });
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPdf(pdfFile);
+            expect(wrapper.vm.pdfWarning).toBe('pdfChunked');
+            expect(wrapper.vm.pdfWarningParams).toEqual({ sections: 3 });
+        });
+
+        it('keeps the truncation notice when pages were dropped', async () => {
+            extractPdfAttachments.mockResolvedValue({
+                attachments: [],
+                truncated: true,
+                sections: 8,
+                textPages: 80,
+                imagePages: 20,
+                pageCount: 95
+            });
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPdf(pdfFile);
+            expect(wrapper.vm.pdfWarning).toBe('pdfTruncated');
+            expect(wrapper.vm.pdfWarningParams).toEqual({ textPages: 80, imagePages: 20, total: 95 });
+        });
+
+        it('shows no notice for a short single-section doc', async () => {
+            extractPdfAttachments.mockResolvedValue({
+                attachments: [],
+                truncated: false,
+                sections: 1,
+                textPages: 4,
+                imagePages: 4,
+                pageCount: 4
+            });
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPdf(pdfFile);
+            expect(wrapper.vm.pdfWarning).toBe('');
+        });
     });
 
     describe('attachment chips', () => {

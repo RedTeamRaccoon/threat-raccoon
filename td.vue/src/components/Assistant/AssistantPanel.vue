@@ -71,6 +71,12 @@
                     <b-spinner small class="mr-1" />{{ $t('assistant.working') }}
                 </div>
 
+                <!-- long documents are ingested section by section; show which
+                     section the agent is currently incorporating -->
+                <div v-if="sectionProgress" class="td-assistant-sections">
+                    {{ $t('assistant.sections', sectionProgress) }}
+                </div>
+
                 <div v-if="pendingToolCalls.length" class="td-assistant-activity">
                     <div
                         v-for="call in pendingToolCalls"
@@ -161,6 +167,7 @@ export default {
             pendingToolCalls: (state) => state.assistant.pendingToolCalls,
             runState: (state) => state.assistant.runState,
             error: (state) => state.assistant.error,
+            sectionProgress: (state) => state.assistant.sectionProgress,
             selectedDiagram: (state) => state.threatmodel.selectedDiagram
         }),
         busy() {
@@ -410,7 +417,8 @@ export default {
     margin-top: 6px;
     font-size: 12px;
 }
-.td-assistant-working {
+.td-assistant-working,
+.td-assistant-sections {
     color: #888;
     font-size: 12px;
     margin-top: 6px;

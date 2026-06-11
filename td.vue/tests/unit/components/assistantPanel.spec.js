@@ -30,7 +30,7 @@ describe('components/Assistant/AssistantPanel.vue', () => {
             config: { config },
             assistant: {
                 provider: null, model: null, messages: [], streamingText: '',
-                pendingToolCalls: [], runState: 'idle', error: null,
+                pendingToolCalls: [], runState: 'idle', error: null, sectionProgress: null,
                 ...(assistant || {})
             },
             threatmodel: threatmodel || { selectedDiagram: { id: 0, diagramType: 'STRIDE' } }
@@ -41,7 +41,11 @@ describe('components/Assistant/AssistantPanel.vue', () => {
         const wrapper = shallowMount(TdAssistantPanel, {
             localVue,
             propsData: propsData || { graph: {} },
-            mocks: { $t: (t) => t, $store: store }
+            mocks: {
+                // param-aware so assertions can see interpolation values
+                $t: (key, params) => (params ? `${key}${JSON.stringify(params)}` : key),
+                $store: store
+            }
         });
         return { wrapper, store };
     };
@@ -80,6 +84,28 @@ describe('components/Assistant/AssistantPanel.vue', () => {
         it('shows nothing when idle', () => {
             const { wrapper } = mountPanel();
             expect(wrapper.find('.td-assistant-working').exists()).toBe(false);
+        });
+    });
+
+    describe('section progress', () => {
+        it('shows which document section is being incorporated', () => {
+            const { wrapper } = mountPanel({
+                assistant: {
+                    runState: 'running',
+                    sectionProgress: { current: 2, total: 5, name: 'spec.pdf' }
+                }
+            });
+            const row = wrapper.find('.td-assistant-sections');
+            expect(row.exists()).toBe(true);
+            expect(row.text()).toContain('assistant.sections');
+            expect(row.text()).toContain('"current":2');
+            expect(row.text()).toContain('"total":5');
+            expect(row.text()).toContain('spec.pdf');
+        });
+
+        it('shows no section row when no chunked document is being ingested', () => {
+            const { wrapper } = mountPanel({ assistant: { runState: 'running' } });
+            expect(wrapper.find('.td-assistant-sections').exists()).toBe(false);
         });
     });
 

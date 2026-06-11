@@ -58,10 +58,11 @@ describe('service/assistant/pdfAttachments.js', () => {
             ]))
         });
 
-        const { attachments, pageCount, truncated } = await extractPdfAttachments(file);
+        const { attachments, pageCount, truncated, sections } = await extractPdfAttachments(file);
 
         expect(pageCount).toBe(2);
         expect(truncated).toBe(false);
+        expect(sections).toBe(1);
         expect(attachments).toHaveLength(3);
 
         const [text, img1, img2] = attachments;
@@ -70,6 +71,10 @@ describe('service/assistant/pdfAttachments.js', () => {
         expect(text.data).toContain('[Page 1]');
         expect(text.data).toContain('hello world');
         expect(text.data).toContain('[Page 2]');
+        // a doc that fits in one section carries no pending sections and no
+        // continuation marker
+        expect(text.pendingSections).toBeUndefined();
+        expect(text.data).not.toContain('[Document continues');
 
         expect(img1).toEqual({
             kind: 'image',
@@ -107,32 +112,69 @@ describe('service/assistant/pdfAttachments.js', () => {
 
         const { attachments, truncated, textPages, imagePages } = await extractPdfAttachments(file, { maxPages: 2 });
 
-        expect(truncated).toBe(true);
+        // the text covers EVERY page, so the document is NOT truncated; only
+        // the page images stop at the cap
+        expect(truncated).toBe(false);
         expect(imagePages).toBe(2);
-        // text still covers EVERY page; only the page images stop at the cap
         expect(textPages).toBe(3);
         expect(attachments).toHaveLength(3);
         expect(attachments[0].data).toContain('[Page 3]');
-        expect(attachments[0].data).toContain('text included for the first 3 of 3 pages');
-        expect(attachments[0].data).toContain('page images for the first 2');
     });
 
-    it('stops extracting text when the text budget is exhausted', async () => {
-        mockGetDocument.mockReturnValue({
-            promise: Promise.resolve(mockDoc([
-                mockPage(['0123456789']),
-                mockPage(['0123456789']),
-                mockPage(['0123456789'])
-            ]))
+    describe('chunking long documents', () => {
+        // each page renders as the entry '[Page n]\n0123456789' = 19 bytes
+        const tenCharPage = () => mockPage(['0123456789']);
+
+        it('splits the text into sections that respect the chunk budget', async () => {
+            mockGetDocument.mockReturnValue({
+                promise: Promise.resolve(mockDoc([tenCharPage(), tenCharPage(), tenCharPage()]))
+            });
+
+            // 40 bytes fits two 19-byte page entries, not three
+            const { attachments, sections, truncated, textPages } =
+                await extractPdfAttachments(file, { chunkBudget: 40 });
+
+            expect(sections).toBe(2);
+            expect(truncated).toBe(false);
+            expect(textPages).toBe(3);
+
+            const text = attachments[0];
+            // section 1 carries pages 1-2 plus the continuation marker
+            expect(text.data).toContain('[Page 1]');
+            expect(text.data).toContain('[Page 2]');
+            expect(text.data).not.toContain('[Page 3]');
+            expect(text.data).toContain('[Document continues: section 1 of 2. Later sections will follow in this conversation.]');
+            // section 2 rides along for the send pipeline
+            expect(text.pendingSections).toHaveLength(1);
+            expect(text.pendingSections[0]).toMatchObject({ index: 2, total: 2, pageRange: '3-3' });
+            expect(text.pendingSections[0].text).toContain('[Page 3]');
         });
 
-        // budget covers roughly one page of text; images capped at 1
-        const { truncated, textPages, imagePages, attachments } =
-            await extractPdfAttachments(file, { maxPages: 1, textBudget: 5 });
+        it('caps the number of sections and marks the document truncated', async () => {
+            // 10 pages, budget so small every page becomes its own section:
+            // the 8-section cap drops pages 9 and 10
+            mockGetDocument.mockReturnValue({
+                promise: Promise.resolve(mockDoc(Array.from({ length: 10 }, tenCharPage)))
+            });
 
-        expect(truncated).toBe(true);
-        expect(textPages).toBe(1);
-        expect(imagePages).toBe(1);
-        expect(attachments[0].data).not.toContain('[Page 2]');
+            const { attachments, sections, truncated, textPages, imagePages, pageCount } =
+                await extractPdfAttachments(file, { chunkBudget: 1 });
+
+            expect(pageCount).toBe(10);
+            expect(sections).toBe(8);
+            expect(truncated).toBe(true);
+            expect(textPages).toBe(8);
+            // images are unaffected by the section cap
+            expect(imagePages).toBe(10);
+            expect(attachments).toHaveLength(11);
+
+            const { pendingSections } = attachments[0];
+            expect(pendingSections).toHaveLength(7);
+            // the honest truncation note lives in the FINAL section's text
+            const last = pendingSections[pendingSections.length - 1];
+            expect(last).toMatchObject({ index: 8, total: 8, pageRange: '8-8' });
+            expect(last.text).toContain('[Document truncated: text included for the first 8 of 10 pages');
+            expect(last.text).toContain('page images for the first 10');
+        });
     });
 });
