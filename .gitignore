@@ -198,6 +198,8 @@
 !td.vue/src/service/desktop/*.js
 !td.vue/src/service/entity/
 !td.vue/src/service/entity/*.js
+!td.vue/src/service/export/
+!td.vue/src/service/export/*.js
 !td.vue/src/service/migration/
 !td.vue/src/service/migration/*.js
 !td.vue/src/service/migration/otm/
@@ -314,6 +316,8 @@
 !td.vue/tests/unit/service/desktop/*.spec.js
 !td.vue/tests/unit/service/entity/
 !td.vue/tests/unit/service/entity/*.spec.js
+!td.vue/tests/unit/service/export/
+!td.vue/tests/unit/service/export/*.spec.js
 !td.vue/tests/unit/service/migration/
 !td.vue/tests/unit/service/migration/*.spec.js
 !td.vue/tests/unit/service/migration/otm/

@@ -353,6 +353,7 @@ const messages = {
         exportAs: '导出模型为',
         exportHtml: '导出HTML',
         exportPdf: '导出PDF',
+        exportXlsx: '导出Excel (XLSX)',
         exportTd: '原始 (Threat Dragon)',
         exportOtm: '开放威胁模型 (OTM)',
         import: '导入',

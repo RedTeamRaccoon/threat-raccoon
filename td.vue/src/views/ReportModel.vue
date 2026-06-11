@@ -130,6 +130,11 @@
                         icon="file-pdf"
                         :text="$t('forms.exportPdf')" />
                     <td-form-button
+                        id="td-export-xlsx-btn"
+                        :onBtnClick="exportXlsx"
+                        icon="file-excel"
+                        :text="$t('forms.exportXlsx')" />
+                    <td-form-button
                         id="td-print-btn"
                         :onBtnClick="print"
                         icon="print"
@@ -236,6 +241,7 @@ import TdFormButton from '@/components/FormButton.vue';
 import TdPrintCoversheet from '@/components/printed-report/Coversheet.vue';
 import TdPrintExecutiveSummary from '@/components/printed-report/ExecutiveSummary.vue';
 import threatService from '@/service/threats/index.js';
+import xlsxExport from '@/service/export/xlsxExport.js';
 
 export default {
     name: 'ReportModel',
@@ -300,6 +306,14 @@ export default {
             if (isElectron()) {
                 // request electron server to print PDF
                 window.electronAPI.modelPrint('PDF');
+            }
+        },
+        async exportXlsx() {
+            console.debug('Export threats as XLSX');
+            try {
+                await xlsxExport.exportXlsx(this.model);
+            } catch (err) {
+                console.error('Failed to export XLSX', err);
             }
         }
     }

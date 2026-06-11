@@ -368,6 +368,7 @@ const messages = {
         exportAs: 'Export Model As',
         exportHtml: 'HTML Report',
         exportPdf: 'PDF Report',
+        exportXlsx: 'Excel (XLSX)',
         exportTd: 'Original (Threat Dragon)',
         exportOtm: 'Open Threat Model (OTM)',
         import: 'Import',
