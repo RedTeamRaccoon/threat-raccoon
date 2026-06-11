@@ -20,10 +20,10 @@ module.exports = {
             'error',
             4
         ],
-        'linebreak-style': [
-            'error',
-            'unix'
-        ],
+        // git (core.autocrlf) manages line endings per platform; enforcing LF in
+        // the working tree fails every file on Windows checkouts and makes
+        // `eslint --fix` rewrite line endings repo-wide.
+        'linebreak-style': 'off',
         'no-array-constructor': 'error',
         'no-duplicate-imports': 'error',
         'no-mixed-spaces-and-tabs': [

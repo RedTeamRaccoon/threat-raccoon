@@ -29,7 +29,7 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
 
 // /v1/models mixes chat models with embeddings/audio/image/etc — exclude the
 // families the assistant cannot drive through chat completions
-const NON_CHAT = /(embed|whisper|tts|dall-e|moderation|audio|realtime|image|transcribe|babbage|davinci)/u;
+const NON_CHAT = /(?:embed|whisper|tts|dall-e|moderation|audio|realtime|image|transcribe|babbage|davinci)/u;
 
 /**
  * Lists the chat-capable models the OpenAI account offers as { id, vision }

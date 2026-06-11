@@ -7,9 +7,9 @@
  */
 import {
     CallToolRequestSchema,
-    ListToolsRequestSchema,
+    GetPromptRequestSchema,
     ListPromptsRequestSchema,
-    GetPromptRequestSchema
+    ListToolsRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
@@ -34,9 +34,7 @@ export const PROMPT_DEFS = [
     {
         name: 'build_threat_model',
         description: 'Build a complete, readable threat model (DFD + thorough STRIDE threats) from a system description.',
-        arguments: [
-            { name: 'system_description', description: 'A description of the system, or a pasted design document.', required: false }
-        ]
+        arguments: [{ name: 'system_description', description: 'A description of the system, or a pasted design document.', required: false }]
     },
     {
         name: 'review_coverage',

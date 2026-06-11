@@ -282,7 +282,19 @@ cd td.vue && npm run test:unit               # jest -> 1543
 cd td.vue && npm run build                   # webpack, must be clean
 npm run markdown:lint                        # docs lint
 ```
-Note: `td.server` mocha must be run via `npm run test:unit` (a bare `mocha` invocation hits a yargs/ESM error).
+td.server test-runner notes (2026-06-11):
+
+- The official td.server runner is **mocha** (591 passing). Do NOT run `npx jest` in td.server: jest resolves
+  and runs the specs but skips the mocha root hooks in `test/test-setup.spec.js` (sinon-chai/chai-as-promised
+  registration), so ~39 suites fail with `Invalid Chai property: calledWith` — a harness artifact, not real
+  breakage.
+- mocha was upgraded 10 -> 11 and nyc 15 -> 17: the old versions bundle yargs 16, whose extensionless
+  `yargs/yargs` file Node 26 parses as ESM and crashes on. The old "bare mocha hits a yargs/ESM error" note
+  is obsolete.
+- `npm test`'s `pretest` used to run `eslint src --fix` (mutating). `lint` is now non-mutating, with the fix
+  behaviour moved to an explicit `lint:fix`. The repo-wide `linebreak-style` eslint rule (eslint.shared.js)
+  is now off: git `core.autocrlf` manages line endings, and the rule made every Windows checkout fail lint
+  (4k+ CRLF errors) and made any `--fix` rewrite line endings repo-wide.
 
 ## 9. Conventions
 
