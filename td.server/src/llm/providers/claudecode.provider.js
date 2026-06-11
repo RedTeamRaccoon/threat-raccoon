@@ -37,9 +37,11 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
 }
 
 /**
- * Lists the model ids the Claude account offers (OAuth-authenticated).
+ * Lists the models the Claude account offers (OAuth-authenticated) as
+ * { id, vision } objects. Every Claude chat model supports vision and tool
+ * use, so vision is always true here.
  * @param {Object} options { apiKey } BYO-token override
- * @returns {Promise<String[]>}
+ * @returns {Promise<Array<{id: String, vision: Boolean}>>}
  */
 const listModels = async (options = {}) => {
     const authToken = options.apiKey || env.get().config.LLM_CLAUDECODE_OAUTH_TOKEN;
@@ -50,11 +52,11 @@ const listModels = async (options = {}) => {
         authToken,
         defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' }
     });
-    const ids = [];
+    const models = [];
     for await (const model of client.models.list()) {
-        ids.push(model.id);
+        models.push({ id: model.id, vision: true });
     }
-    return ids;
+    return models;
 };
 
 export default { name, isConfigured, createCompletionStream, listModels };

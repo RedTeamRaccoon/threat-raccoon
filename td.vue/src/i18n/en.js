@@ -550,6 +550,8 @@ const messages = {
         noDiagram: 'Open a diagram to start collaborating on a threat model.',
         working: 'The assistant is working…',
         sections: 'Processing section {current} of {total} - {name}',
+        noVision: 'no image support',
+        visionWarning: 'The selected model cannot read images. Attached PDF pages and images will fail - choose a model without the "no image support" tag.',
         roles: {
             you: 'You',
             assistant: 'Assistant'

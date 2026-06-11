@@ -254,23 +254,24 @@ describe('controllers/llmcontroller.js', () => {
             llmController._resetModelsCache();
         });
 
-        it('returns the provider account model list', async () => {
+        it('passes the provider account model objects through', async () => {
             sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
+            const list = [{ id: 'gpt-4o', vision: true }, { id: 'gpt-5', vision: false }];
             sinon.stub(llmProviders, 'get').returns({
                 name: 'copilot',
-                listModels: sinon.stub().resolves(['gpt-4o', 'gpt-5'])
+                listModels: sinon.stub().resolves(list)
             });
 
             const res = makeRes();
             await llmController.models(makeModelsReq('copilot'), res);
 
             expect(res.body.status).to.equal(200);
-            expect(res.body.data).to.deep.equal({ provider: 'copilot', models: ['gpt-4o', 'gpt-5'] });
+            expect(res.body.data).to.deep.equal({ provider: 'copilot', models: list });
         });
 
         it('caches the list per provider', async () => {
             sinon.stub(env, 'get').returns({ config: { LLM_ALLOW_USER_KEY: 'false' } });
-            const listModels = sinon.stub().resolves(['gpt-4o']);
+            const listModels = sinon.stub().resolves([{ id: 'gpt-4o', vision: true }]);
             sinon.stub(llmProviders, 'get').returns({ name: 'copilot', listModels });
 
             await llmController.models(makeModelsReq('copilot'), makeRes());
@@ -278,7 +279,7 @@ describe('controllers/llmcontroller.js', () => {
             await llmController.models(makeModelsReq('copilot'), res);
 
             expect(listModels.callCount).to.equal(1);
-            expect(res.body.data.models).to.deep.equal(['gpt-4o']);
+            expect(res.body.data.models).to.deep.equal([{ id: 'gpt-4o', vision: true }]);
         });
 
         it('rejects an unknown provider with a bad request', async () => {

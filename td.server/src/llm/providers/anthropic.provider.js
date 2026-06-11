@@ -29,9 +29,11 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
 }
 
 /**
- * Lists the model ids the Anthropic account offers.
+ * Lists the models the Anthropic account offers as { id, vision } objects.
+ * Every Claude chat model supports vision and tool use, so vision is always
+ * true here.
  * @param {Object} options { apiKey } BYO-key override
- * @returns {Promise<String[]>}
+ * @returns {Promise<Array<{id: String, vision: Boolean}>>}
  */
 const listModels = async (options = {}) => {
     const apiKey = options.apiKey || env.get().config.LLM_ANTHROPIC_API_KEY;
@@ -39,11 +41,11 @@ const listModels = async (options = {}) => {
         throw new Error('Anthropic provider is not configured');
     }
     const client = new Anthropic({ apiKey });
-    const ids = [];
+    const models = [];
     for await (const model of client.models.list()) {
-        ids.push(model.id);
+        models.push({ id: model.id, vision: true });
     }
-    return ids;
+    return models;
 };
 
 export default { name, isConfigured, createCompletionStream, listModels };

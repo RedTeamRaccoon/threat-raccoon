@@ -88,9 +88,49 @@ async function *createCompletionStream (normalizedRequest, options = {}) {
 }
 
 /**
- * Lists the chat-capable model ids the Copilot account offers.
+ * True when the raw Copilot model entry can actually be driven by the
+ * assistant: a chat model exposed over /chat/completions that streams and
+ * supports tool calls.
+ *
+ * Semantics (designed from the live /models payload):
+ *  - capabilities.type must be 'chat' (embeddings models are excluded here).
+ *  - supports.streaming / supports.tool_calls: a chat model with these flags
+ *    EXPLICITLY false is excluded. Older payloads still carry both flags as
+ *    true; if the whole `supports` object is absent we keep the model (legacy
+ *    shape), but if `supports` exists with a flag missing-or-false we drop it —
+ *    we will not assume a capability the payload could have declared and didn't.
+ *  - supported_endpoints, when present as an array, MUST include
+ *    '/chat/completions' (the responses-only models — gpt-5.5 etc — fail here).
+ *    An absent/undefined supported_endpoints is the legacy shape and is kept.
+ * @param {Object} m raw Copilot model entry
+ * @returns {Boolean}
+ */
+const isUsableChatModel = (m) => {
+    const caps = m.capabilities || {};
+    if (caps.type !== 'chat') {
+        return false;
+    }
+    const supports = caps.supports;
+    if (supports) {
+        if (supports.streaming !== true || supports.tool_calls !== true) {
+            return false;
+        }
+    }
+    const endpoints = m.supported_endpoints;
+    if (Array.isArray(endpoints) && !endpoints.includes('/chat/completions')) {
+        return false;
+    }
+    return true;
+};
+
+const visionOf = (m) => Boolean(m.capabilities && m.capabilities.supports && m.capabilities.supports.vision === true);
+
+/**
+ * Lists the chat-capable models the Copilot account offers as { id, vision }
+ * objects (vision boolean). Only models the assistant can actually drive are
+ * returned (see isUsableChatModel).
  * @param {Object} options { apiKey } BYO-key override
- * @returns {Promise<String[]>}
+ * @returns {Promise<Array<{id: String, vision: Boolean}>>}
  */
 const listModels = async (options = {}) => {
     const configured = options.apiKey || env.get().config.LLM_COPILOT_API_KEY;
@@ -117,18 +157,30 @@ const listModels = async (options = {}) => {
     }
 
     const models = (resp.data && resp.data.data) || [];
-    const chat = models.filter((m) => !m.capabilities || m.capabilities.type === 'chat');
+    // Only models that pass the compatibility filter are eligible at all, so a
+    // responses-only model can never reappear (not even via the default below).
+    const usable = models.filter(isUsableChatModel);
     // model_picker_enabled marks the models Copilot offers users in chat UIs;
     // the rest are internal/dated aliases. Keep the configured default while
-    // the account still serves it, so an env-pinned model stays selectable.
-    const ids = new Set(chat.
-        filter((m) => m.model_picker_enabled !== false).
-        map((m) => m.id));
+    // the account still serves it AND it passes the same compatibility filter,
+    // so an env-pinned (but still usable) model stays selectable.
+    const seen = new Set();
+    const out = [];
+    const add = (m) => {
+        if (!seen.has(m.id)) {
+            seen.add(m.id);
+            out.push({ id: m.id, vision: visionOf(m) });
+        }
+    };
+    usable.filter((m) => m.model_picker_enabled !== false).forEach(add);
     const configuredModel = getModel();
-    if (configuredModel && chat.some((m) => m.id === configuredModel)) {
-        ids.add(configuredModel);
+    if (configuredModel) {
+        const def = usable.find((m) => m.id === configuredModel);
+        if (def) {
+            add(def);
+        }
     }
-    return [...ids];
+    return out;
 };
 
 // exported for tests

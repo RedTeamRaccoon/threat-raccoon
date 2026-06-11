@@ -99,6 +99,9 @@
             <div v-if="error" class="td-assistant-error">
                 {{ error }}
             </div>
+            <div v-if="showVisionWarning" class="td-assistant-vision-warning">
+                {{ $t('assistant.visionWarning') }}
+            </div>
             <div v-if="mode === 'diagram' && !hasDiagram" class="td-assistant-hint">
                 {{ $t('assistant.noDiagram') }}
             </div>
@@ -168,6 +171,7 @@ export default {
             runState: (state) => state.assistant.runState,
             error: (state) => state.assistant.error,
             sectionProgress: (state) => state.assistant.sectionProgress,
+            attachments: (state) => state.assistant.attachments,
             selectedDiagram: (state) => state.threatmodel.selectedDiagram
         }),
         busy() {
@@ -196,15 +200,29 @@ export default {
             return this.aiConfig.providers.map((p) => ({ value: p.id, text: p.label || p.id }));
         },
         modelOptions() {
-            const ids = this.availableModelIds(this.selectedProvider);
+            const models = this.availableModels(this.selectedProvider);
+            const ids = models.map((m) => m.id);
             // While the live list for this provider is still pending, the env list
             // is only provisional — surface the stored/selected pick too so the
             // select can display it (the option must exist for v-model to show it).
+            let list = models;
             if (this.selectedModel && !ids.includes(this.selectedModel)
                 && !this.hasLiveModels(this.selectedProvider)) {
-                return [this.selectedModel, ...ids].map((id) => ({ value: id, text: id }));
+                list = [{ id: this.selectedModel, vision: null }, ...models];
             }
-            return ids.map((id) => ({ value: id, text: id }));
+            return list.map((m) => ({ value: m.id, text: this.modelOptionText(m) }));
+        },
+        showVisionWarning() {
+            // Warn only when the user has staged image attachments AND the
+            // selected model is KNOWN not to support vision. Unknown vision
+            // (null — env fallbacks, OpenAI) never warns.
+            const model = this.availableModels(this.selectedProvider)
+                .find((m) => m.id === this.selectedModel);
+            if (!model || model.vision !== false) {
+                return false;
+            }
+            const attachments = this.attachments || [];
+            return attachments.some((a) => a.kind === 'image');
         },
         hasDiagram() {
             return !!(this.selectedDiagram && this.selectedDiagram.diagramType);
@@ -272,15 +290,36 @@ export default {
             const live = this.liveModels[providerId];
             return !!(live && live.length);
         },
-        availableModelIds(providerId) {
+        // Normalizes a model entry from either accepted shape — a bare id string
+        // (legacy / env-configured fallback) or an { id, vision } object — into
+        // a uniform { id, vision } where vision is true|false|null (null =
+        // unknown). String entries are unknown-vision.
+        normalizeModel(m) {
+            if (typeof m === 'string') {
+                return { id: m, vision: null };
+            }
+            return { id: m.id, vision: (typeof m.vision === 'boolean' ? m.vision : null) };
+        },
+        availableModels(providerId) {
             // live (account-accurate) list when fetched; env-configured fallback
             const live = this.liveModels[providerId];
             if (live && live.length) {
-                return live;
+                return live.map((m) => this.normalizeModel(m));
             }
             const provider = this.aiConfig.providers.find((p) => p.id === providerId);
             const models = (provider && provider.models) || [];
-            return models.map((m) => (typeof m === 'string' ? m : m.id));
+            return models.map((m) => this.normalizeModel(m));
+        },
+        availableModelIds(providerId) {
+            return this.availableModels(providerId).map((m) => m.id);
+        },
+        modelOptionText(model) {
+            // Mark KNOWN no-vision models so the user understands attaching an
+            // image/PDF will not be seen. Unknown vision (null) shows plain id.
+            if (model.vision === false) {
+                return `${model.id} — ${this.$t('assistant.noVision')}`;
+            }
+            return model.id;
         },
         applyDefaultModel() {
             const provider = this.aiConfig.providers.find((p) => p.id === this.selectedProvider);
@@ -453,6 +492,11 @@ export default {
 }
 .td-assistant-error {
     color: #b00;
+    font-size: 12px;
+    margin: 6px 0;
+}
+.td-assistant-vision-warning {
+    color: #8a6d00;
     font-size: 12px;
     margin: 6px 0;
 }

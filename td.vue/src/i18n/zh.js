@@ -535,6 +535,8 @@ const messages = {
         noDiagram: '打开一个图表，开始协作构建威胁模型。',
         working: '助手正在处理…',
         sections: '正在处理第 {current}/{total} 部分 - {name}',
+        noVision: '不支持图片',
+        visionWarning: '所选模型无法读取图片。附加的 PDF 页面和图片将无法处理 - 请选择没有"不支持图片"标记的模型。',
         roles: {
             you: '你',
             assistant: '助手'

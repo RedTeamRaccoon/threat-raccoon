@@ -266,4 +266,88 @@ describe('components/Assistant/AssistantPanel.vue', () => {
             expect(wrapper.vm.selectedModel).toBe('claude-sonnet-4-6');
         });
     });
+
+    describe('vision-aware model lists', () => {
+        it('normalizes an { id, vision } object live list', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: [
+                { id: 'claude-opus-4-8', vision: true },
+                { id: 'claude-haiku-4-5', vision: false }
+            ] } });
+            const { wrapper } = mountPanel();
+            await flush();
+
+            expect(wrapper.vm.modelOptions.map((o) => o.value))
+                .toEqual(['claude-opus-4-8', 'claude-haiku-4-5']);
+        });
+
+        it('appends the noVision marker to vision-false option text only', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: [
+                { id: 'gpt-4o', vision: true },
+                { id: 'gpt-3.5-turbo', vision: false }
+            ] } });
+            const { wrapper } = mountPanel({ assistant: { provider: 'openai' } });
+            await flush();
+
+            const byId = Object.fromEntries(wrapper.vm.modelOptions.map((o) => [o.value, o.text]));
+            expect(byId['gpt-4o']).toBe('gpt-4o');
+            expect(byId['gpt-3.5-turbo']).toBe('gpt-3.5-turbo — assistant.noVision');
+        });
+
+        it('shows no marker for string (env fallback) lists -> unknown vision', () => {
+            // live fetch rejected by default beforeEach -> env list of plain strings
+            const { wrapper } = mountPanel();
+            expect(wrapper.vm.modelOptions.every((o) => !o.text.includes('assistant.noVision'))).toBe(true);
+        });
+
+        it('warns when image attachments are staged AND the selected model has vision === false', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: [{ id: 'gpt-3.5-turbo', vision: false }] } });
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'openai', attachments: [{ kind: 'image' }] }
+            });
+            await flush();
+
+            expect(wrapper.vm.selectedModel).toBe('gpt-3.5-turbo');
+            expect(wrapper.vm.showVisionWarning).toBe(true);
+            expect(wrapper.find('.td-assistant-vision-warning').exists()).toBe(true);
+        });
+
+        it('does not warn for a vision-capable selected model', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: [{ id: 'gpt-4o', vision: true }] } });
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'openai', attachments: [{ kind: 'image' }] }
+            });
+            await flush();
+
+            expect(wrapper.vm.showVisionWarning).toBe(false);
+            expect(wrapper.find('.td-assistant-vision-warning').exists()).toBe(false);
+        });
+
+        it('does not warn for unknown (null) vision even with image attachments', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: [{ id: 'mystery', vision: null }] } });
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'openai', attachments: [{ kind: 'image' }] }
+            });
+            await flush();
+
+            expect(wrapper.vm.showVisionWarning).toBe(false);
+        });
+
+        it('does not warn for a vision-false model when no image attachments are staged', async () => {
+            api.getAsync.mockResolvedValue({ data: { models: [{ id: 'gpt-3.5-turbo', vision: false }] } });
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'openai', attachments: [{ kind: 'text' }] }
+            });
+            await flush();
+
+            expect(wrapper.vm.showVisionWarning).toBe(false);
+        });
+
+        it('string (env fallback) lists never warn (unknown vision)', () => {
+            // env fallback for openai is the plain string list -> vision unknown
+            const { wrapper } = mountPanel({
+                assistant: { provider: 'openai', model: 'gpt-4o', attachments: [{ kind: 'image' }] }
+            });
+            expect(wrapper.vm.showVisionWarning).toBe(false);
+        });
+    });
 });
