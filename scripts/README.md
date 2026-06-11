@@ -6,6 +6,7 @@ Helper scripts for local maintainer convenience; they are not part of the deploy
 | ------ | ------- |
 | [`setup-windows.ps1`](./setup-windows.ps1) | One-shot Windows 11 setup: prerequisites + build + Copilot token + Copilot-CLI wiring + first launch |
 | [`start-threatdragon.ps1`](./start-threatdragon.ps1) | Daily driver: verify token, build if needed, start Threat Dragon, open the browser |
+| [`stop-threatdragon.ps1`](./stop-threatdragon.ps1) | Stop the running Threat Dragon instance, whichever terminal started it |
 | [`get-copilot-token.mjs`](./get-copilot-token.mjs) | Generate a GitHub Copilot token (device flow) and store it in `.env` |
 | [`td-build-desktop-linux-appimage.sh`](./td-build-desktop-linux-appimage.sh) | Build Linux AppImage (amd64) |
 | [`td-trivy-check.sh`](./td-trivy-check.sh) | Run local Trivy scan (requires docker) |
