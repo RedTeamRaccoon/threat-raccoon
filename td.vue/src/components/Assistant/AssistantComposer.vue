@@ -25,6 +25,10 @@
             {{ $t(`assistant.attachment.${pdfWarning}`, pdfWarningParams) }}
         </div>
 
+        <div v-if="skippedWarningParams.count" class="td-assistant-warning">
+            {{ $t('assistant.attachment.imagesSkipped', skippedWarningParams) }}
+        </div>
+
         <!-- native textarea: bootstrap-vue's b-form-textarea under @vue/compat
              does not reliably reflect programmatic value changes (the input
              kept its text after send), and native v-model is dependable -->
@@ -46,7 +50,7 @@
                 size="sm"
                 :placeholder="$t('assistant.composer.attach')"
                 :browse-text="$t('assistant.composer.browse')"
-                accept="text/*,image/*,application/pdf,.pdf,.json,.md,.txt"
+                accept="text/*,image/*,application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.json,.md,.txt"
                 class="td-assistant-file"
                 @input="onFilesSelected"
             ></b-form-file>
@@ -77,10 +81,14 @@ import { mapState } from 'vuex';
 
 import assistantActions from '@/store/actions/assistant.js';
 import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
+import { extractDocxAttachments } from '@/service/assistant/docxAttachments.js';
 
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
 const isPdf = (file) => file.type === 'application/pdf' || (/\.pdf$/iu).test(file.name || '');
+const isDocx = (file) => file.type === DOCX_MIME || (/\.docx$/iu).test(file.name || '');
 
 export default {
     name: 'TdAssistantComposer',
@@ -101,6 +109,7 @@ export default {
             sizeWarning: false,
             pdfWarning: '',
             pdfWarningParams: {},
+            skippedWarningParams: {},
             pdfBusy: false
         };
     },
@@ -163,6 +172,9 @@ export default {
             if (isPdf(file)) {
                 return this.readPdf(file);
             }
+            if (isDocx(file)) {
+                return this.readDocx(file);
+            }
             const isImage = file.type && file.type.startsWith('image/');
             const reader = new FileReader();
             reader.onload = () => {
@@ -184,6 +196,7 @@ export default {
             // page as an image so the model can read embedded diagrams.
             this.pdfWarning = '';
             this.pdfWarningParams = {};
+            this.skippedWarningParams = {};
             this.pdfBusy = true;
             try {
                 const { attachments, truncated, textPages, imagePages, pageCount, sections } =
@@ -200,6 +213,37 @@ export default {
                 }
             } catch (e) {
                 console.error('PDF extraction failed', e);
+                this.pdfWarning = 'pdfFailed';
+            } finally {
+                this.pdfBusy = false;
+            }
+        },
+        async readDocx(file) {
+            // DOCX is OOXML (a ZIP): extract the text (headings/tables preserved)
+            // and deliver every embedded figure to the vision model. Reuse the
+            // PDF busy flag, spinner, and chunk/truncate notices since their
+            // wording is generic.
+            this.pdfWarning = '';
+            this.pdfWarningParams = {};
+            this.skippedWarningParams = {};
+            this.pdfBusy = true;
+            try {
+                const { attachments, truncated, textPages, imagePages, pageCount, sections, skippedImages } =
+                    await extractDocxAttachments(file);
+                attachments.forEach((attachment) => this.addAttachment(attachment));
+                if (truncated) {
+                    this.pdfWarning = 'pdfTruncated';
+                    this.pdfWarningParams = { textPages, imagePages, total: pageCount };
+                } else if (sections > 1) {
+                    this.pdfWarning = 'pdfChunked';
+                    this.pdfWarningParams = { sections };
+                }
+                if (skippedImages > 0) {
+                    // a second, small notice stacks below the chunk/truncate one
+                    this.skippedWarningParams = { count: skippedImages };
+                }
+            } catch (e) {
+                console.error('DOCX extraction failed', e);
                 this.pdfWarning = 'pdfFailed';
             } finally {
                 this.pdfBusy = false;
@@ -234,6 +278,7 @@ export default {
             this.sizeWarning = false;
             this.pdfWarning = '';
             this.pdfWarningParams = {};
+            this.skippedWarningParams = {};
         }
     }
 };

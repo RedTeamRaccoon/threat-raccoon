@@ -566,10 +566,11 @@ const messages = {
         attachment: {
             image: 'Image',
             tooLarge: 'Attachments exceed the size limit. Please remove some before sending.',
-            pdfFailed: 'Could not read the attached PDF. Try exporting it again or paste the text instead.',
+            pdfFailed: 'Could not read the attached document. Try exporting it again or paste the text instead.',
             pdfTruncated: 'Long PDF: attached the text of the first {textPages} of {total} pages and page images for the first {imagePages}. For full coverage attach the most relevant section.',
             pdfChunked: 'Long PDF: it will be processed in {sections} sections, one after another.',
-            reading: 'Reading the PDF…',
+            imagesSkipped: '{count} embedded image(s) could not be converted (unsupported format) and were skipped.',
+            reading: 'Reading the document…',
             pages: '{count} pages'
         },
         settingsModal: {

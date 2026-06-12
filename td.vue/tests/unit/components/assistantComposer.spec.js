@@ -3,8 +3,10 @@ import { mount, createLocalVue } from '@vue/test-utils';
 
 import TdAssistantComposer from '@/components/Assistant/AssistantComposer.vue';
 import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
+import { extractDocxAttachments } from '@/service/assistant/docxAttachments.js';
 
 jest.mock('@/service/assistant/pdfAttachments.js', () => ({ extractPdfAttachments: jest.fn() }));
+jest.mock('@/service/assistant/docxAttachments.js', () => ({ extractDocxAttachments: jest.fn() }));
 
 describe('components/Assistant/AssistantComposer.vue', () => {
     const mountComposer = (propsData = { busy: false, canSend: true }, attachments = []) => {
@@ -107,6 +109,79 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             const { wrapper } = mountComposer();
             await wrapper.vm.readPdf(pdfFile);
             expect(wrapper.vm.pdfWarning).toBe('');
+        });
+    });
+
+    describe('docx extraction routing and notices', () => {
+        const docxFile = {
+            name: 'spec.docx',
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        };
+
+        const ok = (over = {}) => ({
+            attachments: [],
+            truncated: false,
+            sections: 1,
+            textPages: 1,
+            imagePages: 0,
+            pageCount: 1,
+            skippedImages: 0,
+            ...over
+        });
+
+        it('routes a .docx file through readDocx, not the text reader', async () => {
+            extractDocxAttachments.mockResolvedValue(ok());
+            const { wrapper } = mountComposer();
+            const spy = jest.spyOn(wrapper.vm, 'readDocx');
+            wrapper.vm.readFile({ name: 'notes.docx' });
+            expect(spy).toHaveBeenCalled();
+            expect(extractDocxAttachments).toHaveBeenCalled();
+        });
+
+        it('shows the skipped-images notice when figures could not be converted', async () => {
+            extractDocxAttachments.mockResolvedValue(ok({ skippedImages: 2 }));
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readDocx(docxFile);
+            expect(wrapper.vm.pdfWarning).toBe('');
+            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 2 });
+        });
+
+        it('stacks the chunked notice and the skipped notice together', async () => {
+            extractDocxAttachments.mockResolvedValue(ok({ sections: 3, skippedImages: 1 }));
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readDocx(docxFile);
+            expect(wrapper.vm.pdfWarning).toBe('pdfChunked');
+            expect(wrapper.vm.pdfWarningParams).toEqual({ sections: 3 });
+            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 1 });
+        });
+
+        it('shows the truncation notice for a truncated docx', async () => {
+            extractDocxAttachments.mockResolvedValue(
+                ok({ truncated: true, sections: 8, textPages: 8, imagePages: 20, pageCount: 40 })
+            );
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readDocx(docxFile);
+            expect(wrapper.vm.pdfWarning).toBe('pdfTruncated');
+            expect(wrapper.vm.pdfWarningParams).toEqual({ textPages: 8, imagePages: 20, total: 40 });
+        });
+
+        it('shows no notice for a short single-section docx with no skips', async () => {
+            extractDocxAttachments.mockResolvedValue(ok());
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readDocx(docxFile);
+            expect(wrapper.vm.pdfWarning).toBe('');
+            expect(wrapper.vm.skippedWarningParams).toEqual({});
+        });
+
+        it('falls through to the generic text reader for an old binary .doc', () => {
+            const { wrapper } = mountComposer();
+            const docSpy = jest.spyOn(wrapper.vm, 'readDocx');
+            const pdfSpy = jest.spyOn(wrapper.vm, 'readPdf');
+            // a real Blob so the generic FileReader path does not crash
+            const doc = new File(['x'], 'legacy.doc', { type: 'application/msword' });
+            expect(() => wrapper.vm.readFile(doc)).not.toThrow();
+            expect(docSpy).not.toHaveBeenCalled();
+            expect(pdfSpy).not.toHaveBeenCalled();
         });
     });
 

@@ -551,10 +551,11 @@ const messages = {
         attachment: {
             image: '图片',
             tooLarge: '附件超出大小限制。请先移除部分附件再发送。',
-            pdfFailed: '无法读取附加的 PDF。请尝试重新导出，或直接粘贴文本。',
+            pdfFailed: '无法读取附加的文档。请尝试重新导出，或直接粘贴文本。',
             pdfTruncated: 'PDF 较长：已附加前 {textPages} 页（共 {total} 页）的文本和前 {imagePages} 页的页面图像。如需完整覆盖，请附加最相关的章节。',
             pdfChunked: 'PDF 较长：将分为 {sections} 个部分依次处理。',
-            reading: '正在读取 PDF…',
+            imagesSkipped: '{count} 张嵌入图片因格式不受支持而被跳过。',
+            reading: '正在读取文档…',
             pages: '{count} 页'
         },
         settingsModal: {
