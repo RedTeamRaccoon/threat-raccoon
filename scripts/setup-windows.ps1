@@ -88,10 +88,9 @@ try {
         Write-Ok ".env already present (left as-is)."
     }
 
-    # 4. Copilot token for the in-app assistant ----------------------------
-    Write-Step "Generating a GitHub Copilot token for the Threat Dragon assistant..."
-    Write-Warn2 "A browser code will be shown - approve it to link your Copilot subscription."
-    node (Join-Path $repoRoot 'scripts\get-copilot-token.mjs')
+    # 4. AI assistant providers for the in-app assistant -------------------
+    Write-Step "Configuring the in-app AI assistant providers..."
+    & (Join-Path $repoRoot 'scripts\setup-providers.ps1')
 
     # Let the local (no-login) session use the in-app assistant. This setup
     # targets a single-user machine; on a shared/public server leave it false
@@ -145,7 +144,7 @@ finally {
 Write-Step "Setup complete. You're off to the races."
 Write-Host @"
 
-  Two ways to use GitHub Copilot with Threat Dragon - both keep data on Copilot only:
+  Two ways to use AI with Threat Dragon:
 
   A) GitHub Copilot CLI -> Threat Dragon MCP (recommended, no Threat Dragon login):
        copilot
@@ -158,8 +157,8 @@ Write-Host @"
      One command: builds anything missing, checks the token, starts the app and
      opens your browser. (Avoid 'npm start' on Windows - it is currently broken.)
 
-  Your Copilot token is stored in .env (LLM_COPILOT_API_KEY). Re-run any time:
-       node scripts\get-copilot-token.mjs
+  Your assistant providers are stored in .env. Add or replace a provider any time:
+       .\scripts\setup-providers.ps1
 
 "@ -ForegroundColor White
 

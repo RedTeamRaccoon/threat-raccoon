@@ -7,6 +7,7 @@ Helper scripts for local maintainer convenience; they are not part of the deploy
 | [`setup-windows.ps1`](./setup-windows.ps1) | One-shot Windows 11 setup: prerequisites + build + Copilot token + Copilot-CLI wiring + first launch |
 | [`start-threatdragon.ps1`](./start-threatdragon.ps1) | Daily driver: verify token, build if needed, start Threat Dragon, open the browser |
 | [`stop-threatdragon.ps1`](./stop-threatdragon.ps1) | Stop the running Threat Dragon instance, whichever terminal started it |
+| [`setup-providers.ps1`](./setup-providers.ps1) | Interactively configure the in-app AI assistant's LLM providers (Copilot, Anthropic, OpenAI, Claude Code) and set the default provider + model in `.env` |
 | [`get-copilot-token.mjs`](./get-copilot-token.mjs) | Generate a GitHub Copilot token (device flow) and store it in `.env` |
 | [`td-build-desktop-linux-appimage.sh`](./td-build-desktop-linux-appimage.sh) | Build Linux AppImage (amd64) |
 | [`td-trivy-check.sh`](./td-trivy-check.sh) | Run local Trivy scan (requires docker) |
@@ -46,6 +47,25 @@ has expired, starts a single server process that serves both the web app and the
 Re-running while Threat Dragon is already up just opens the browser. To stop it, close the minimized `node`
 window (or use the `Stop-Process` command it prints). Use this instead of `npm start` on Windows — the npm
 `start` script currently fails under `cmd.exe`.
+
+### `setup-providers.ps1` — configure the in-app assistant's LLM providers
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # once per window
+.\scripts\setup-providers.ps1
+```
+
+Run during `setup-windows.ps1` (step 4) or standalone any time you want to add or replace a provider. It presents
+a multi-select menu of **GitHub Copilot, Anthropic (Claude), OpenAI (GPT) and Claude Code (OAuth)**. Picking any
+non-Copilot provider triggers a confidential-data warning and a confirmation prompt, because on managed/work
+machines Copilot is typically the only provider approved for proprietary documents (API providers send the
+attached document text and images to that vendor). For each chosen provider it assists with the credential —
+Copilot runs the device-flow token generator; the others open the vendor's key page and read the key/token
+**hidden** (`Read-Host -AsSecureString`, never echoed) — and upserts the matching `LLM_*` key into `.env`. It then
+sets `LLM_PROVIDER` to your chosen default, lets you pick that provider's `LLM_*_MODEL` (Enter accepts the
+`example.env` default; Claude Code defaults to `claude-haiku-4-5` since Opus is rate-limited on subscription
+tokens), and ensures `LLM_ENABLED=true`. A server restart (`stop-threatdragon.ps1` then `start-threatdragon.ps1`)
+is required for the new `.env` values to take effect.
 
 ### `get-copilot-token.mjs` — generate + store a Copilot token (any OS)
 
