@@ -10,6 +10,20 @@ test('MODELING_GUIDANCE teaches readable layout and thorough STRIDE', () => {
     }
 });
 
+test('MODELING_GUIDANCE carries the load-bearing prompt-hardening rules', () => {
+    // Completion contract + universal don't-stop.
+    assert.ok(MODELING_GUIDANCE.includes('COMPLETE THE WHOLE REQUEST IN ONE RUN'));
+    assert.ok(MODELING_GUIDANCE.includes('validateModel passes'));
+    // Assumptions protocol.
+    assert.ok(MODELING_GUIDANCE.includes('Assumptions & open questions'));
+    // Citation format marker.
+    assert.ok(MODELING_GUIDANCE.includes('[src:'));
+    // Insider + modern-TTP coverage.
+    assert.match(MODELING_GUIDANCE, /insider/i);
+    // Request-efficient batching.
+    assert.ok(MODELING_GUIDANCE.includes('BATCH AGGRESSIVELY'));
+});
+
 test('buildModelTask embeds the guidance and the system description', () => {
     const t = buildModelTask('My SaaS document app');
     assert.ok(t.includes(MODELING_GUIDANCE));

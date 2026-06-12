@@ -121,7 +121,7 @@ export const toolDefinitions = [
     },
     {
         name: 'addThreat',
-        description: 'Attach a threat to a specific element or flow. Be thorough: cover the STRIDE categories that apply to the target type (actors: spoofing/repudiation; processes: all six; stores: tampering/repudiation/info-disclosure/DoS; flows: tampering/info-disclosure/DoS) rather than one threat per element. Write a description that names the element and why it is at risk, set a justified severity, and give a concrete actionable mitigation (not "use encryption"). Omitted fields fall back to the methodology defaults. Increments the threat counter and marks the element as having open threats.',
+        description: 'Attach a threat to a specific element or flow. Be thorough: cover the STRIDE categories that apply to the target type (actors: spoofing/repudiation; processes: all six; stores: tampering/repudiation/info-disclosure/DoS; flows: tampering/info-disclosure/DoS) rather than one threat per element. Also cover malicious/unwitting insiders and realistic modern TTPs (credential/token theft, phishing, SSRF, supply-chain, cloud-metadata abuse) for the technologies this design names. Write a description that names the specific element and why it is at risk, ending with a concise source citation suffix [src: <doc-or-section>, p.<page>]; set a justified severity; give a concrete actionable mitigation (not "use encryption"). Omitted fields fall back to the methodology defaults. Increments the threat counter and marks the element as having open threats.',
         input_schema: {
             type: 'object',
             additionalProperties: false,
