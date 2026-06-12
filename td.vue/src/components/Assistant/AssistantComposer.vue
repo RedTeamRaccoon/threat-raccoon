@@ -50,7 +50,7 @@
                 size="sm"
                 :placeholder="$t('assistant.composer.attach')"
                 :browse-text="$t('assistant.composer.browse')"
-                accept="text/*,image/*,application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.json,.md,.txt"
+                accept="text/*,image/*,application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,.json,.md,.txt"
                 class="td-assistant-file"
                 @input="onFilesSelected"
             ></b-form-file>
@@ -82,13 +82,16 @@ import { mapState } from 'vuex';
 import assistantActions from '@/store/actions/assistant.js';
 import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
 import { extractDocxAttachments } from '@/service/assistant/docxAttachments.js';
+import { extractPptxAttachments } from '@/service/assistant/pptxAttachments.js';
 
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
 const isPdf = (file) => file.type === 'application/pdf' || (/\.pdf$/iu).test(file.name || '');
 const isDocx = (file) => file.type === DOCX_MIME || (/\.docx$/iu).test(file.name || '');
+const isPptx = (file) => file.type === PPTX_MIME || (/\.pptx$/iu).test(file.name || '');
 
 export default {
     name: 'TdAssistantComposer',
@@ -175,6 +178,9 @@ export default {
             if (isDocx(file)) {
                 return this.readDocx(file);
             }
+            if (isPptx(file)) {
+                return this.readPptx(file);
+            }
             const isImage = file.type && file.type.startsWith('image/');
             const reader = new FileReader();
             reader.onload = () => {
@@ -244,6 +250,37 @@ export default {
                 }
             } catch (e) {
                 console.error('DOCX extraction failed', e);
+                this.pdfWarning = 'pdfFailed';
+            } finally {
+                this.pdfBusy = false;
+            }
+        },
+        async readPptx(file) {
+            // PPTX is OOXML (a ZIP): extract each slide's text (title/tables
+            // preserved) and deliver every embedded figure to the vision model.
+            // Reuse the PDF busy flag, spinner, and chunk/truncate/skip notices
+            // since their wording is generic.
+            this.pdfWarning = '';
+            this.pdfWarningParams = {};
+            this.skippedWarningParams = {};
+            this.pdfBusy = true;
+            try {
+                const { attachments, truncated, textPages, imagePages, pageCount, sections, skippedImages } =
+                    await extractPptxAttachments(file);
+                attachments.forEach((attachment) => this.addAttachment(attachment));
+                if (truncated) {
+                    this.pdfWarning = 'pdfTruncated';
+                    this.pdfWarningParams = { textPages, imagePages, total: pageCount };
+                } else if (sections > 1) {
+                    this.pdfWarning = 'pdfChunked';
+                    this.pdfWarningParams = { sections };
+                }
+                if (skippedImages > 0) {
+                    // a second, small notice stacks below the chunk/truncate one
+                    this.skippedWarningParams = { count: skippedImages };
+                }
+            } catch (e) {
+                console.error('PPTX extraction failed', e);
                 this.pdfWarning = 'pdfFailed';
             } finally {
                 this.pdfBusy = false;

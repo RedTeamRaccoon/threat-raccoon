@@ -4,9 +4,11 @@ import { mount, createLocalVue } from '@vue/test-utils';
 import TdAssistantComposer from '@/components/Assistant/AssistantComposer.vue';
 import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
 import { extractDocxAttachments } from '@/service/assistant/docxAttachments.js';
+import { extractPptxAttachments } from '@/service/assistant/pptxAttachments.js';
 
 jest.mock('@/service/assistant/pdfAttachments.js', () => ({ extractPdfAttachments: jest.fn() }));
 jest.mock('@/service/assistant/docxAttachments.js', () => ({ extractDocxAttachments: jest.fn() }));
+jest.mock('@/service/assistant/pptxAttachments.js', () => ({ extractPptxAttachments: jest.fn() }));
 
 describe('components/Assistant/AssistantComposer.vue', () => {
     const mountComposer = (propsData = { busy: false, canSend: true }, attachments = []) => {
@@ -181,6 +183,79 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             const doc = new File(['x'], 'legacy.doc', { type: 'application/msword' });
             expect(() => wrapper.vm.readFile(doc)).not.toThrow();
             expect(docSpy).not.toHaveBeenCalled();
+            expect(pdfSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('pptx extraction routing and notices', () => {
+        const pptxFile = {
+            name: 'spec.pptx',
+            type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        };
+
+        const ok = (over = {}) => ({
+            attachments: [],
+            truncated: false,
+            sections: 1,
+            textPages: 1,
+            imagePages: 0,
+            pageCount: 1,
+            skippedImages: 0,
+            ...over
+        });
+
+        it('routes a .pptx file through readPptx, not the text reader', async () => {
+            extractPptxAttachments.mockResolvedValue(ok());
+            const { wrapper } = mountComposer();
+            const spy = jest.spyOn(wrapper.vm, 'readPptx');
+            wrapper.vm.readFile({ name: 'deck.pptx' });
+            expect(spy).toHaveBeenCalled();
+            expect(extractPptxAttachments).toHaveBeenCalled();
+        });
+
+        it('shows the skipped-images notice when figures could not be converted', async () => {
+            extractPptxAttachments.mockResolvedValue(ok({ skippedImages: 2 }));
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPptx(pptxFile);
+            expect(wrapper.vm.pdfWarning).toBe('');
+            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 2 });
+        });
+
+        it('stacks the chunked notice and the skipped notice together', async () => {
+            extractPptxAttachments.mockResolvedValue(ok({ sections: 3, skippedImages: 1 }));
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPptx(pptxFile);
+            expect(wrapper.vm.pdfWarning).toBe('pdfChunked');
+            expect(wrapper.vm.pdfWarningParams).toEqual({ sections: 3 });
+            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 1 });
+        });
+
+        it('shows the truncation notice for a truncated pptx', async () => {
+            extractPptxAttachments.mockResolvedValue(
+                ok({ truncated: true, sections: 8, textPages: 8, imagePages: 20, pageCount: 40 })
+            );
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPptx(pptxFile);
+            expect(wrapper.vm.pdfWarning).toBe('pdfTruncated');
+            expect(wrapper.vm.pdfWarningParams).toEqual({ textPages: 8, imagePages: 20, total: 40 });
+        });
+
+        it('shows no notice for a short single-section pptx with no skips', async () => {
+            extractPptxAttachments.mockResolvedValue(ok());
+            const { wrapper } = mountComposer();
+            await wrapper.vm.readPptx(pptxFile);
+            expect(wrapper.vm.pdfWarning).toBe('');
+            expect(wrapper.vm.skippedWarningParams).toEqual({});
+        });
+
+        it('falls through to the generic text reader for an old binary .ppt', () => {
+            const { wrapper } = mountComposer();
+            const pptxSpy = jest.spyOn(wrapper.vm, 'readPptx');
+            const pdfSpy = jest.spyOn(wrapper.vm, 'readPdf');
+            // a real Blob so the generic FileReader path does not crash
+            const ppt = new File(['x'], 'legacy.ppt', { type: 'application/vnd.ms-powerpoint' });
+            expect(() => wrapper.vm.readFile(ppt)).not.toThrow();
+            expect(pptxSpy).not.toHaveBeenCalled();
             expect(pdfSpy).not.toHaveBeenCalled();
         });
     });
