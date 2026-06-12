@@ -65,10 +65,12 @@ const opList = ({ images = [], paths = 0, texts = 0 } = {}) => {
 
 // A page mock. `graphics` (optional) gives { images, paths, texts } for the
 // operator list plus an `objs` map of name -> resolved image object (or a
-// special value to simulate failure). Legacy text-only tests pass no graphics
-// but we default them to one path op so they stay "graphical" and keep a render.
+// special value to simulate failure). Legacy text-only tests pass no graphics;
+// we default them to a path-dominant op profile (paths over the diagram floor,
+// no competing text ops) so they satisfy the new VECTOR-DIAGRAM render rule and
+// keep their expected page renders.
 const mockPage = (texts, graphics) => {
-    const g = graphics || { images: [], paths: 1, texts: 0, objs: {} };
+    const g = graphics || { images: [], paths: 25, texts: 0, objs: {} };
     const objs = g.objs || {};
     return {
         getTextContent: () => Promise.resolve({
@@ -209,10 +211,11 @@ describe('service/assistant/pdfAttachments.js', () => {
         expect(attachments[0].kind).toBe('text');
     });
 
-    it('renders a graphical page (high path ratio, no images)', async () => {
+    it('renders a graphical page (path-dominant vector diagram, no images)', async () => {
         mockGetDocument.mockReturnValue({
             promise: Promise.resolve(mockDoc([
-                mockPage(['chart'], { images: [], paths: 10, texts: 2, objs: {} })
+                // paths clear the diagram floor and dominate the sparse text
+                mockPage(['chart'], { images: [], paths: 30, texts: 2, objs: {} })
             ]))
         });
 
@@ -222,6 +225,67 @@ describe('service/assistant/pdfAttachments.js', () => {
         expect(figures).toBe(0);
         expect(attachments).toHaveLength(2);
         expect(attachments[1].name).toBe('design-spec.pdf (page 1)');
+    });
+
+    it('does NOT render a table-like page (paths accompanied by dense text)', async () => {
+        // a table: many cell-border path ops but each cell carries text, so
+        // textOps >= pathOps. Content is already in the text layer.
+        mockGetDocument.mockReturnValue({
+            promise: Promise.resolve(mockDoc([
+                mockPage(['cell a', 'cell b', 'cell c'],
+                    { images: [], paths: 40, texts: 60, objs: {} })
+            ]))
+        });
+
+        const { attachments, imagePages, figures } = await extractPdfAttachments(file);
+
+        // table -> not rendered, but its text is still extracted
+        expect(imagePages).toBe(0);
+        expect(figures).toBe(0);
+        expect(attachments).toHaveLength(1);
+        expect(attachments[0].kind).toBe('text');
+        expect(attachments[0].data).toContain('cell a');
+        expect(attachments.find((a) => a.name === 'design-spec.pdf (page 1)')).toBeUndefined();
+    });
+
+    it('renders a vector-diagram page (paths dominate sparse text)', async () => {
+        // a diagram: lots of path work, only a few node labels -> pathOps
+        // clears the floor and strictly exceeds textOps.
+        mockGetDocument.mockReturnValue({
+            promise: Promise.resolve(mockDoc([
+                mockPage(['node'], { images: [], paths: 40, texts: 10, objs: {} })
+            ]))
+        });
+
+        const { attachments, imagePages, figures } = await extractPdfAttachments(file);
+
+        expect(imagePages).toBe(1);
+        expect(figures).toBe(0);
+        expect(attachments).toHaveLength(2);
+        expect(attachments[1].name).toBe('design-spec.pdf (page 1)');
+    });
+
+    it('renders a table page that ALSO has an embedded image op (image rule wins)', async () => {
+        // table-shaped text/path profile but with one real embedded figure:
+        // imageOps >= 1 forces a render regardless of the path/text balance.
+        mockGetDocument.mockReturnValue({
+            promise: Promise.resolve(mockDoc([
+                mockPage(['cell a', 'cell b'], {
+                    images: [{ name: 'fig' }],
+                    paths: 40,
+                    texts: 60,
+                    objs: { fig: rgbImage(500, 400) }
+                })
+            ]))
+        });
+
+        const { attachments, imagePages, figures } = await extractPdfAttachments(file);
+
+        // one figure extracted AND the page rendered (image op present)
+        expect(figures).toBe(1);
+        expect(imagePages).toBe(1);
+        expect(attachments.find((a) => a.name === 'design-spec.pdf (page 1, figure 1)')).toBeDefined();
+        expect(attachments.find((a) => a.name === 'design-spec.pdf (page 1)')).toBeDefined();
     });
 
     it('extracts an embedded figure with "(page N, figure 1)" naming', async () => {
@@ -395,9 +459,10 @@ describe('service/assistant/pdfAttachments.js', () => {
 
     describe('chunking long documents', () => {
         // each page renders as the entry '[Page n]\n0123456789' = 19 bytes; give
-        // it a path op so the page stays graphical and keeps its render (so the
-        // legacy image-count expectations still hold)
-        const tenCharPage = () => mockPage(['0123456789'], { images: [], paths: 1, texts: 0, objs: {} });
+        // it a path-dominant op profile (paths over the diagram floor, no text
+        // ops) so each page qualifies as a vector diagram and keeps its render
+        // (so the legacy image-count expectations still hold)
+        const tenCharPage = () => mockPage(['0123456789'], { images: [], paths: 25, texts: 0, objs: {} });
 
         it('splits the text into sections that respect the chunk budget', async () => {
             mockGetDocument.mockReturnValue({
@@ -451,12 +516,12 @@ describe('service/assistant/pdfAttachments.js', () => {
     });
 
     it('enforces the TOTAL image budget by dropping later pages', async () => {
-        // 3 graphical pages, budget 2 -> only the first 2 renders kept
+        // 3 path-dominant vector pages, budget 2 -> only the first 2 renders kept
         mockGetDocument.mockReturnValue({
             promise: Promise.resolve(mockDoc([
-                mockPage(['one'], { images: [], paths: 2, texts: 0, objs: {} }),
-                mockPage(['two'], { images: [], paths: 2, texts: 0, objs: {} }),
-                mockPage(['three'], { images: [], paths: 2, texts: 0, objs: {} })
+                mockPage(['one'], { images: [], paths: 25, texts: 0, objs: {} }),
+                mockPage(['two'], { images: [], paths: 25, texts: 0, objs: {} }),
+                mockPage(['three'], { images: [], paths: 25, texts: 0, objs: {} })
             ]))
         });
 

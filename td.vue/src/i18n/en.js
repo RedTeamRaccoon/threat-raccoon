@@ -576,7 +576,7 @@ const messages = {
             pdfChunked: 'Long PDF: it will be processed in {sections} sections, one after another.',
             imagesSkipped: '{count} embedded image(s) could not be converted (unsupported format) and were skipped.',
             reading: 'Reading the document…',
-            pages: '{count} pages'
+            pages: '{count} images'
         },
         settingsModal: {
             intro: 'Bring your own API key. Keys are stored encrypted on this device and never leave it except to call the selected provider.',

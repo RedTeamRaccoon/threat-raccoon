@@ -561,7 +561,7 @@ const messages = {
             pdfChunked: 'PDF 较长：将分为 {sections} 个部分依次处理。',
             imagesSkipped: '{count} 张嵌入图片因格式不受支持而被跳过。',
             reading: '正在读取文档…',
-            pages: '{count} 页'
+            pages: '{count} 张图片'
         },
         settingsModal: {
             intro: '使用你自己的 API 密钥。密钥在本设备上加密存储，除调用所选提供方外不会离开本设备。',

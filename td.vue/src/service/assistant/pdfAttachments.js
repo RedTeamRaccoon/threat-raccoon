@@ -39,9 +39,24 @@ const MAX_FIGURES_PER_PAGE = 6;
 const STRIP_MAX_HEIGHT = 120;
 const STRIP_MIN_GROUP = 3;
 
-// a page is "graphical" (worth a full render) when image+path ops are a real
-// share of its content, or it has any image at all
-const GRAPHICAL_RATIO = 0.15;
+// A page warrants a full render only when it carries graphical signal the text
+// layer can't express. Two cases qualify:
+//   1. ANY embedded raster image (imageOps >= 1): a real figure/photo lives on
+//      the page (subject to the image-dense exception below).
+//   2. A VECTOR DIAGRAM: substantial path work that DOMINATES the text.
+//
+// The distinction that matters for the budget is TABLE vs DIAGRAM. Both are
+// drawn with the same vector path operators (borders, rules, cell strokes), so
+// a raw path count can't tell them apart. The TEXT they accompany can:
+//   - a TABLE is paths + DENSE text (every cell carries a label), so textOps is
+//     comparable to or greater than pathOps. Its content is already in the text
+//     layer, so rendering a screenshot of it wastes the image budget.
+//   - a DIAGRAM is paths + SPARSE text (a few node labels), so pathOps clearly
+//     dominates textOps.
+// We therefore render a vector page only when pathOps clears a floor AND
+// strictly exceeds textOps. Tables (textOps >= pathOps) and pure-text pages
+// (pathOps below the floor) are left to the text layer.
+const DIAGRAM_PATH_FLOOR = 20;
 // above this many image ops a page is image-dense: its extracted figures carry
 // more signal than a full-page collage render, so skip the page render
 const IMAGE_DENSE_OPS = 8;
@@ -340,20 +355,29 @@ const extractPageGraphics = async (page, pdfjs, seenDataUrls) => {
 };
 
 /**
- * Decides whether a page warrants a full-page render. Render when the page looks
- * graphical (mixed path/image content) AND it isn't image-dense with figures
- * already extracted (figures carry more signal than the collage).
+ * Decides whether a page warrants a full-page render.
+ *
+ * Render when EITHER:
+ *   (a) the page has an embedded raster image (imageOps >= 1) — real figure
+ *       context the text layer can't carry — UNLESS it is image-dense
+ *       (imageOps > IMAGE_DENSE_OPS) and we already extracted its figures, in
+ *       which case the native-res figures beat a full-page collage render; OR
+ *   (b) the page is a VECTOR DIAGRAM: path work clears DIAGRAM_PATH_FLOOR and
+ *       strictly dominates the text (pathOps > textOps). A table (paths + dense
+ *       text, textOps >= pathOps) and a pure-text page (paths below the floor)
+ *       both fall through to NOT render — their content is in the text layer.
  */
 const shouldRenderPage = ({ imageOps, pathOps, textOps }, extractedFigureCount) => {
-    const total = Math.max(1, imageOps + pathOps + textOps);
-    const graphical = (imageOps + pathOps) / total > GRAPHICAL_RATIO || imageOps >= 1;
-    if (!graphical) {
-        return false;
+    if (imageOps >= 1) {
+        // image-dense pages with extracted figures skip the collage render
+        if (imageOps > IMAGE_DENSE_OPS && extractedFigureCount > 0) {
+            return false;
+        }
+        return true;
     }
-    if (imageOps > IMAGE_DENSE_OPS && extractedFigureCount > 0) {
-        return false;
-    }
-    return true;
+    // vector page: render only diagrams (paths dominating sparse text), not
+    // tables (paths accompanied by dense, per-cell text)
+    return pathOps >= DIAGRAM_PATH_FLOOR && pathOps > textOps;
 };
 
 /**
