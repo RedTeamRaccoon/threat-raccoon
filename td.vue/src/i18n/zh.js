@@ -537,6 +537,11 @@ const messages = {
         sections: '正在处理第 {current}/{total} 部分 - {name}',
         noVision: '不支持图片',
         visionWarning: '所选模型无法读取图片。附加的 PDF 页面和图片将无法处理 - 请选择没有"不支持图片"标记的模型。',
+        stepLimit: '已达到步骤上限（{count} 个工具步骤）。发送"继续"以从中断处恢复。',
+        runSettings: {
+            maxSteps: '每次运行的最大步骤数',
+            maxStepsHint: '单条消息可使用的工具步骤（提供商请求）上限。调高可一次完成大型构建；调低可保护有限的请求额度。'
+        },
         roles: {
             you: '你',
             assistant: '助手'

@@ -552,6 +552,11 @@ const messages = {
         sections: 'Processing section {current} of {total} - {name}',
         noVision: 'no image support',
         visionWarning: 'The selected model cannot read images. Attached PDF pages and images will fail - choose a model without the "no image support" tag.',
+        stepLimit: 'Step limit reached ({count} tool steps). Send "continue" to resume where it left off.',
+        runSettings: {
+            maxSteps: 'Max steps per run',
+            maxStepsHint: 'Upper bound on tool steps (provider requests) one message may use. Higher finishes big builds in one go; lower protects a limited request budget.'
+        },
         roles: {
             you: 'You',
             assistant: 'Assistant'

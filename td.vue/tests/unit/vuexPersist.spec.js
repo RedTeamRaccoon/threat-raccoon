@@ -21,7 +21,11 @@ describe('plugins/vuex-persist reducer', () => {
         attachments: [{ kind: 'image', mediaType: 'image/png', data: 'AAAA' }],
         error: 'boom',
         abortRequested: true,
-        sectionProgress: { current: 1, total: 3, name: 'spec.pdf' }
+        sectionProgress: { current: 1, total: 3, name: 'spec.pdf' },
+        // durable setting
+        maxSteps: 120,
+        // volatile per-run notice that must NOT persist
+        stepLimitReached: 50
     });
 
     it('persists the durable conversation state', () => {
@@ -33,6 +37,16 @@ describe('plugins/vuex-persist reducer', () => {
         expect(out.messages[0].content[0].text).toBe('hello');
     });
 
+    it('persists the durable maxSteps setting', () => {
+        const out = reduceAssistant(liveAssistant());
+        expect(out.maxSteps).toBe(120);
+    });
+
+    it('defaults maxSteps to 50 when missing or junk', () => {
+        expect(reduceAssistant({}).maxSteps).toBe(50);
+        expect(reduceAssistant({ maxSteps: 'nope' }).maxSteps).toBe(50);
+    });
+
     it('resets volatile run-state to its initial values', () => {
         const out = reduceAssistant(liveAssistant());
         expect(out.streaming).toBe(false);
@@ -42,6 +56,8 @@ describe('plugins/vuex-persist reducer', () => {
         expect(out.error).toBeNull();
         expect(out.abortRequested).toBe(false);
         expect(out.sectionProgress).toBeNull();
+        // the per-run step-limit notice is never persisted
+        expect(out.stepLimitReached).toBeNull();
     });
 
     it('never persists attachments (multi-MB base64 page images)', () => {
@@ -52,9 +68,9 @@ describe('plugins/vuex-persist reducer', () => {
     it('returns the full module shape so it merges cleanly over initialState', () => {
         const out = reduceAssistant(liveAssistant());
         expect(Object.keys(out).sort()).toEqual([
-            'abortRequested', 'attachments', 'error', 'messages', 'model',
+            'abortRequested', 'attachments', 'error', 'maxSteps', 'messages', 'model',
             'panelOpen', 'pendingToolCalls', 'provider', 'runState',
-            'sectionProgress', 'streaming', 'streamingText'
+            'sectionProgress', 'stepLimitReached', 'streaming', 'streamingText'
         ]);
         // no volatile key restores to undefined
         Object.values(out).forEach((v) => expect(v).not.toBeUndefined());

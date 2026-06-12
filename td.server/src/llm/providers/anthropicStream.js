@@ -56,6 +56,10 @@ export async function *mapAnthropicStream (raw) {
     }
 }
 
+// 16384 is the safe ceiling across all current Claude models (thinking tokens
+// count toward max_tokens; adaptive thinking does not require a separate budget).
+const DEFAULT_MAX_TOKENS = 16384;
+
 /**
  * Builds Anthropic request params from a normalized request and streams the
  * normalized events. Defaults to adaptive thinking per the Opus 4.8 conventions
@@ -67,7 +71,7 @@ export async function *mapAnthropicStream (raw) {
 export async function *streamAnthropic (client, { model, normalizedRequest, signal }) {
     const params = {
         model,
-        max_tokens: normalizedRequest.max_tokens || 8192,
+        max_tokens: normalizedRequest.max_tokens || DEFAULT_MAX_TOKENS,
         messages: normalizedRequest.messages || [],
         stream: true
     };

@@ -8,6 +8,15 @@
                 <span class="td-assistant-header-actions">
                     <b-button
                         size="sm"
+                        :variant="settingsOpen ? 'secondary' : 'outline-secondary'"
+                        :title="$t('assistant.runSettings.maxStepsHint')"
+                        :pressed="settingsOpen"
+                        @click="settingsOpen = !settingsOpen"
+                    >
+                        <font-awesome-icon icon="cog" />
+                    </b-button>
+                    <b-button
+                        size="sm"
                         variant="outline-secondary"
                         :title="$t('assistant.clear')"
                         :disabled="busy || !messages.length"
@@ -49,6 +58,25 @@
                 ></b-form-select>
             </div>
 
+            <div v-if="settingsOpen" class="td-assistant-settings-row">
+                <label class="td-assistant-settings-label" for="td-assistant-max-steps">
+                    {{ $t('assistant.runSettings.maxSteps') }}
+                </label>
+                <b-form-input
+                    id="td-assistant-max-steps"
+                    v-model.number="maxSteps"
+                    type="number"
+                    size="sm"
+                    min="10"
+                    max="200"
+                    step="5"
+                    :disabled="busy"
+                    :title="$t('assistant.runSettings.maxStepsHint')"
+                    class="td-assistant-settings-input"
+                    @change="onMaxStepsChange"
+                ></b-form-input>
+            </div>
+
             <div ref="transcript" class="td-assistant-transcript">
                 <div v-if="!messages.length && !streamingText" class="td-assistant-empty">
                     {{ $t('assistant.empty') }}
@@ -75,6 +103,14 @@
                      section the agent is currently incorporating -->
                 <div v-if="sectionProgress" class="td-assistant-sections">
                     {{ $t('assistant.sections', sectionProgress) }}
+                </div>
+
+                <!-- the agent loop hit the step cap and stopped (per-request
+                     billing) rather than auto-continuing forever; tell the user
+                     to send 'continue' to resume -->
+                <div v-if="stepLimitReached" class="td-assistant-limit">
+                    <font-awesome-icon icon="exclamation-triangle" class="mr-1" />
+                    {{ $t('assistant.stepLimit', { count: stepLimitReached }) }}
                 </div>
 
                 <div v-if="pendingToolCalls.length" class="td-assistant-activity">
@@ -154,6 +190,10 @@ export default {
             controller: null,
             selectedProvider: null,
             selectedModel: null,
+            settingsOpen: false,
+            // local mirror of the persisted store setting, so the number input is
+            // freely editable while typing; clamped + committed on @change
+            maxSteps: this.$store.state.assistant.maxSteps,
             isDesktop: isElectron(),
             desktopProviders: [],
             desktopDefaults: { provider: null, model: null },
@@ -171,6 +211,7 @@ export default {
             runState: (state) => state.assistant.runState,
             error: (state) => state.assistant.error,
             sectionProgress: (state) => state.assistant.sectionProgress,
+            stepLimitReached: (state) => state.assistant.stepLimitReached,
             attachments: (state) => state.assistant.attachments,
             selectedDiagram: (state) => state.threatmodel.selectedDiagram
         }),
@@ -380,6 +421,12 @@ export default {
             this.$store.dispatch(assistantActions.setModel, value);
             this.persistDesktopSelection();
         },
+        onMaxStepsChange() {
+            // dispatch clamps to the sane range (10-200); mirror the clamped
+            // result back into the input so an out-of-range entry self-corrects
+            this.$store.dispatch(assistantActions.setMaxSteps, this.maxSteps);
+            this.maxSteps = this.$store.state.assistant.maxSteps;
+        },
         persistDesktopSelection() {
             if (this.isDesktop && window.electronAPI && window.electronAPI.llmSetSettings) {
                 window.electronAPI.llmSetSettings({ provider: this.selectedProvider, model: this.selectedModel });
@@ -395,7 +442,8 @@ export default {
                 text,
                 binding,
                 signal: this.controller.signal,
-                systemContext: modelMode ? MODEL_MODE_CONTEXT : undefined
+                systemContext: modelMode ? MODEL_MODE_CONTEXT : undefined,
+                maxSteps: this.$store.state.assistant.maxSteps
             });
         },
         stop() {
@@ -448,6 +496,25 @@ export default {
     gap: 6px;
     margin-bottom: 8px;
 }
+.td-assistant-settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background-color: #f6f6f6;
+    border-radius: 6px;
+    font-size: 13px;
+}
+.td-assistant-settings-label {
+    margin: 0;
+    flex: 1;
+    color: #555;
+}
+.td-assistant-settings-input {
+    width: 80px;
+    flex: 0 0 auto;
+}
 .td-assistant-transcript {
     flex: 1;
     overflow-y: auto;
@@ -485,6 +552,15 @@ export default {
     color: #888;
     font-size: 12px;
     margin-top: 6px;
+}
+.td-assistant-limit {
+    color: #8a6d00;
+    background-color: #fff8e1;
+    border: 1px solid #ffe39e;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 6px 8px;
+    margin-top: 8px;
 }
 .td-assistant-activity-error {
     color: #b00;

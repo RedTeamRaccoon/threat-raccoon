@@ -60,6 +60,10 @@ export const reduceAssistant = (assistant) => {
         provider: assistant.provider || null,
         model: assistant.model || null,
         messages,
+        // durable: the user's chosen step budget survives navigation/reloads.
+        // Coerced to a number with a sensible default so a corrupt stored value
+        // can never restore as NaN/undefined.
+        maxSteps: Number.isFinite(Number(assistant.maxSteps)) ? Number(assistant.maxSteps) : 50,
         // volatile run-state — reset to initial values on restore. Attachments
         // can carry multi-MB base64 page images, so they are never persisted.
         attachments: [],
@@ -69,7 +73,9 @@ export const reduceAssistant = (assistant) => {
         runState: 'idle',
         error: null,
         abortRequested: false,
-        sectionProgress: null
+        sectionProgress: null,
+        // volatile: the step-limit notice is per-run, never persisted
+        stepLimitReached: null
     };
 };
 

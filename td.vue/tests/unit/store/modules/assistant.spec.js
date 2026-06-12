@@ -2,9 +2,16 @@ import {
     ASSISTANT_SECTION_PROGRESS,
     ASSISTANT_SEND,
     ASSISTANT_SET_ERROR,
-    ASSISTANT_SET_RUN_STATE
+    ASSISTANT_SET_MAX_STEPS,
+    ASSISTANT_SET_RUN_STATE,
+    ASSISTANT_SET_STEP_LIMIT
 } from '@/store/actions/assistant.js';
-import assistantModule, { pruneIngestedSection } from '@/store/modules/assistant.js';
+import assistantModule, {
+    pruneIngestedSection,
+    clampMaxSteps,
+    sectionFailureMessage,
+    MAX_STEPS_DEFAULT
+} from '@/store/modules/assistant.js';
 import { runAgentLoop } from '@/service/assistant/agentLoop.js';
 
 jest.mock('@/service/assistant/agentLoop.js', () => ({ runAgentLoop: jest.fn() }));
@@ -31,7 +38,9 @@ describe('store/modules/assistant.js', () => {
             attachments,
             error: null,
             abortRequested: false,
-            sectionProgress: null
+            sectionProgress: null,
+            maxSteps: 50,
+            stepLimitReached: null
         };
         const commit = jest.fn((type, payload) => {
             if (assistantModule.mutations[type]) {
@@ -178,18 +187,50 @@ describe('store/modules/assistant.js', () => {
             expect(context.state.runState).toBe('idle');
         });
 
-        it('stops the remaining sections when a section run fails', async () => {
+        it('carries on to the next section when one section run fails', async () => {
             const context = buildContext(chunkedAttachments());
             runAgentLoop
-                .mockResolvedValueOnce([])
-                .mockRejectedValueOnce(new Error('boom'));
+                .mockResolvedValueOnce([]) // initial run
+                .mockRejectedValueOnce(new Error('boom')) // section 2 fails
+                .mockResolvedValueOnce([]); // section 3 still runs
 
             await send(context);
 
-            // first run + section 2 (which failed); section 3 never sent
-            expect(runAgentLoop).toHaveBeenCalledTimes(2);
-            expect(context.commit).toHaveBeenCalledWith(ASSISTANT_SET_ERROR, 'boom');
+            // first run + section 2 (failed) + section 3 (still attempted)
+            expect(runAgentLoop).toHaveBeenCalledTimes(3);
+            // a final notice names the failed section; the transient error was reset
+            expect(context.state.error).toBe(sectionFailureMessage([2]));
             expect(context.state.sectionProgress).toBeNull();
+            expect(context.state.runState).toBe('idle');
+        });
+
+        it('lists every failed section in the final notice', async () => {
+            const context = buildContext(chunkedAttachments());
+            runAgentLoop
+                .mockResolvedValueOnce([]) // initial run
+                .mockRejectedValueOnce(new Error('boom 2')) // section 2 fails
+                .mockRejectedValueOnce(new Error('boom 3')); // section 3 fails
+
+            await send(context);
+
+            expect(runAgentLoop).toHaveBeenCalledTimes(3);
+            expect(context.state.error).toBe(sectionFailureMessage([2, 3]));
+        });
+
+        it('stops everything immediately when a section run throws AbortError', async () => {
+            const context = buildContext(chunkedAttachments());
+            const abortError = new Error('aborted');
+            abortError.name = 'AbortError';
+            runAgentLoop
+                .mockResolvedValueOnce([]) // initial run
+                .mockRejectedValueOnce(abortError); // section 2 aborts -> stop all
+
+            await send(context);
+
+            // section 3 must NOT run after an abort
+            expect(runAgentLoop).toHaveBeenCalledTimes(2);
+            // abort is never surfaced as an error
+            expect(context.state.error).toBeNull();
             expect(context.state.runState).toBe('idle');
         });
 
@@ -203,6 +244,102 @@ describe('store/modules/assistant.js', () => {
 
             expect(context.state.error).toBeNull();
             expect(context.state.runState).toBe('idle');
+        });
+
+        it('passes the maxSteps payload through to runAgentLoop as maxIterations', async () => {
+            const context = buildContext();
+            runAgentLoop.mockResolvedValue([]);
+
+            await send(context, { maxSteps: 75 });
+
+            expect(runAgentLoop).toHaveBeenCalledWith(
+                expect.objectContaining({ maxIterations: 75 })
+            );
+        });
+
+        it('clamps an out-of-range maxSteps payload before running', async () => {
+            const context = buildContext();
+            runAgentLoop.mockResolvedValue([]);
+
+            await send(context, { maxSteps: 9999 });
+
+            expect(runAgentLoop).toHaveBeenCalledWith(
+                expect.objectContaining({ maxIterations: 200 })
+            );
+        });
+
+        it('falls back to the persisted maxSteps when the payload omits it', async () => {
+            const context = buildContext();
+            context.state.maxSteps = 30;
+            runAgentLoop.mockResolvedValue([]);
+
+            await send(context, { maxSteps: undefined });
+
+            expect(runAgentLoop).toHaveBeenCalledWith(
+                expect.objectContaining({ maxIterations: 30 })
+            );
+        });
+
+        it('records the step-limit notice when onLimit fires', async () => {
+            const context = buildContext();
+            runAgentLoop.mockImplementation(async ({ callbacks }) => {
+                callbacks.onLimit({ count: 50 });
+                return [];
+            });
+
+            await send(context);
+
+            expect(context.commit).toHaveBeenCalledWith(ASSISTANT_SET_STEP_LIMIT, 50);
+            expect(context.state.stepLimitReached).toBe(50);
+        });
+
+        it('clears any prior step-limit notice at the start of a send', async () => {
+            const context = buildContext();
+            context.state.stepLimitReached = 50;
+            runAgentLoop.mockResolvedValue([]);
+
+            await send(context);
+
+            // the user typing "continue" resumes: the notice is cleared up front
+            expect(context.commit).toHaveBeenCalledWith(ASSISTANT_SET_STEP_LIMIT, null);
+            expect(context.state.stepLimitReached).toBeNull();
+        });
+    });
+
+    describe('maxSteps setting', () => {
+        it('clampMaxSteps coerces and clamps to the sane range', () => {
+            expect(clampMaxSteps(50)).toBe(50);
+            expect(clampMaxSteps(5)).toBe(10);
+            expect(clampMaxSteps(9999)).toBe(200);
+            expect(clampMaxSteps('40')).toBe(40);
+            expect(clampMaxSteps('junk')).toBe(MAX_STEPS_DEFAULT);
+            expect(clampMaxSteps(undefined)).toBe(MAX_STEPS_DEFAULT);
+            expect(clampMaxSteps(33.7)).toBe(34);
+        });
+
+        it('ASSISTANT_SET_MAX_STEPS mutation stores the clamped value', () => {
+            const state = { maxSteps: 50 };
+            assistantModule.mutations[ASSISTANT_SET_MAX_STEPS](state, 9999);
+            expect(state.maxSteps).toBe(200);
+            assistantModule.mutations[ASSISTANT_SET_MAX_STEPS](state, 2);
+            expect(state.maxSteps).toBe(10);
+        });
+
+        it('ASSISTANT_SET_STEP_LIMIT mutation sets and clears the notice', () => {
+            const state = { stepLimitReached: null };
+            assistantModule.mutations[ASSISTANT_SET_STEP_LIMIT](state, 50);
+            expect(state.stepLimitReached).toBe(50);
+            assistantModule.mutations[ASSISTANT_SET_STEP_LIMIT](state, null);
+            expect(state.stepLimitReached).toBeNull();
+        });
+    });
+
+    describe('sectionFailureMessage', () => {
+        it('uses singular phrasing for one failed section', () => {
+            expect(sectionFailureMessage([3])).toBe('Section 3 failed - it was skipped.');
+        });
+        it('uses plural phrasing and lists each failed section', () => {
+            expect(sectionFailureMessage([3, 5])).toBe('Sections 3, 5 failed - they were skipped.');
         });
     });
 });

@@ -20,7 +20,7 @@ import { MODELING_GUIDANCE } from '@tmcore/guidance.js';
 
 import proxyClient from '@/service/assistant/proxyClient.js';
 
-const MAX_ITERATIONS = 25;
+const MAX_ITERATIONS = 50;
 
 const SYSTEM_PROMPT = [
     'You are a threat-modeling assistant embedded in OWASP Threat Dragon. You build the model on the live diagram canvas by calling the provided tools, and the user watches it appear in real time. Prefer calling tools to make changes rather than only describing them.',
@@ -35,8 +35,7 @@ const MODEL_MODE_CONTEXT = [
     'You operate on the WHOLE threat model. Call getModelSummary first to list the diagrams and their ids.',
     'Tools that work inside a diagram require a diagramId argument. createDiagram adds a new data-flow diagram to the model.',
     'Changes do not animate on this page — the user opens a diagram to see them.',
-    'This mode is well suited to bulk work across multiple diagrams (for example creating several diagrams, or adding threats throughout the model).',
-    'When the user asks you to build or review across the model, carry the work through EVERY relevant diagram in one run — do not stop between diagrams to ask whether to continue. Only pause when you genuinely need information you cannot infer.'
+    'This mode is well suited to bulk work across multiple diagrams (for example creating several diagrams, or adding threats throughout the model).'
 ].join(' ');
 
 const stripDataUrl = (data) => (typeof data === 'string' && data.includes(',') ? data.slice(data.indexOf(',') + 1) : data);
@@ -73,14 +72,18 @@ const toWire = (messages) => messages.map((m) => ({
     content: Array.isArray(m.content) ? m.content : [{ type: 'text', text: String(m.content) }]
 }));
 
+// Parse a tool_use's accumulated input JSON. Returns { value, ok } so callers can
+// tell a genuinely-empty/parsed input from a TRUNCATED one (incomplete JSON that
+// fell back to {}). A truncated tool call must NOT be executed with empty args.
 const safeParse = (json) => {
     if (!json) {
-        return {};
+        // no args streamed at all — a valid no-argument call
+        return { value: {}, ok: true };
     }
     try {
-        return JSON.parse(json);
+        return { value: JSON.parse(json), ok: true };
     } catch (e) {
-        return {};
+        return { value: {}, ok: false };
     }
 };
 
@@ -97,7 +100,10 @@ const safeParse = (json) => {
  * @param {Array} [options.tools] tool definitions (defaults to @tmcore/tools.js toolDefinitions)
  * @param {AbortSignal} [options.signal]
  * @param {object} [options.proxy] transport (defaults to proxyClient), for testing
- * @param {object} [options.callbacks] UI hooks
+ * @param {object} [options.callbacks] UI hooks (onText, onToolUseStart, onToolResult,
+ *   onTurnComplete, onToolResults, onLimit). onLimit({ count }) fires when the
+ *   iteration cap is hit while the model still wanted to continue.
+ * @param {number} [options.maxIterations] hard cap on tool-use turns (default 50)
  * @returns {Promise<Array>} the extended messages array
  */
 const runAgentLoop = async (options) => {
@@ -111,7 +117,8 @@ const runAgentLoop = async (options) => {
         signal,
         tools = toolDefinitions,
         proxy = proxyClient,
-        callbacks = {}
+        callbacks = {},
+        maxIterations = MAX_ITERATIONS
     } = options;
 
     mergeAttachments(messages, attachments);
@@ -128,6 +135,7 @@ const runAgentLoop = async (options) => {
 
     const consumeStream = async (request) => {
         let text = '';
+        let stopReason = null;
         const collected = [];
 
         await proxy.streamCompletion(request, {
@@ -153,28 +161,52 @@ const runAgentLoop = async (options) => {
                     }
                     break;
                 }
+                case 'message_delta':
+                    // carries the turn's stop_reason (e.g. 'max_tokens' when the
+                    // output limit truncated the reply mid tool-call)
+                    if (evt.stop_reason) {
+                        stopReason = evt.stop_reason;
+                    }
+                    break;
                 default:
                     break;
                 }
             }
         });
 
-        const toolUses = collected.map((t) => ({
-            type: 'tool_use',
-            id: t.id,
-            name: t.name,
-            input: safeParse(t.inputJson)
-        }));
+        // When the output limit (max_tokens) cut the turn off, the LAST tool_use
+        // block can be truncated — its accumulated JSON args are incomplete and
+        // would parse back to {}. Executing it with empty args is wrong, so drop
+        // that partial call and let the auto-continue re-issue it intact.
+        let truncatedToolDropped = false;
+        const toolUses = [];
+        collected.forEach((t, idx) => {
+            const parsed = safeParse(t.inputJson);
+            const isLast = idx === collected.length - 1;
+            if (!parsed.ok && stopReason === 'max_tokens' && isLast) {
+                truncatedToolDropped = true;
+                return;
+            }
+            toolUses.push({
+                type: 'tool_use',
+                id: t.id,
+                name: t.name,
+                input: parsed.value
+            });
+        });
         const content = [];
         if (text) {
             content.push({ type: 'text', text });
         }
         content.push(...toolUses);
-        return { content, toolUses };
+        return { content, toolUses, stopReason, truncatedToolDropped };
     };
 
-    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration += 1) {
+    let completed = false;
+    let iteration = 0;
+    for (; iteration < maxIterations; iteration += 1) {
         if (signal && signal.aborted) {
+            completed = true;
             break;
         }
 
@@ -187,14 +219,38 @@ const runAgentLoop = async (options) => {
             stream: true
         };
 
-        const { content, toolUses } = await consumeStream(request);
+        const { content, toolUses, stopReason } = await consumeStream(request);
         const assistantMessage = { role: 'assistant', content };
         messages.push(assistantMessage);
         if (callbacks.onTurnComplete) {
             callbacks.onTurnComplete(assistantMessage);
         }
 
+        // The output limit cut this turn off. Auto-continue ONCE for this
+        // occurrence: append a brief user nudge and iterate so the model picks up
+        // exactly where it left off. The truncated tool_use (if any) was already
+        // dropped in consumeStream, so the assistant message holds only complete
+        // blocks and the conversation stays coherent. This counts as an iteration.
+        if (stopReason === 'max_tokens' && !toolUses.length) {
+            const note = {
+                role: 'user',
+                content: [{
+                    type: 'text',
+                    text: '[Your previous reply was cut off by the output limit. Continue exactly where you left off.]'
+                }]
+            };
+            messages.push(note);
+            if (callbacks.onToolResults) {
+                callbacks.onToolResults(note);
+            }
+            continue;
+        }
+        // If complete tool calls remain (a truncated one was already dropped),
+        // fall through to execute them; the next iteration resumes the cut-off
+        // work naturally.
+
         if (!toolUses.length) {
+            completed = true;
             break;
         }
 
@@ -228,8 +284,18 @@ const runAgentLoop = async (options) => {
         }
     }
 
+    // The iteration cap was hit while the model still wanted to keep going (the
+    // loop exited by exhausting its budget, not because the model finished or the
+    // run was aborted). Do NOT exit silently — bills are per request, so surface
+    // it so the UI can tell the user the step limit was reached. The conversation
+    // ends on a tool_result (user) turn, every tool_use has a matching
+    // tool_result, so typing 'continue' resumes naturally.
+    if (!completed && iteration >= maxIterations && callbacks.onLimit) {
+        callbacks.onLimit({ count: maxIterations });
+    }
+
     return messages;
 };
 
 export default { runAgentLoop };
-export { runAgentLoop, MODEL_MODE_CONTEXT };
+export { runAgentLoop, MODEL_MODE_CONTEXT, MAX_ITERATIONS };

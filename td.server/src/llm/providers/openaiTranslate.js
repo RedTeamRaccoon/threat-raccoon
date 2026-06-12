@@ -169,6 +169,11 @@ export async function *mapOpenAiStream (raw) {
     yield { type: 'message_stop' };
 }
 
+// gpt-4o caps output at 16384 tokens, which matches our target default.
+// We use max_tokens (not max_completion_tokens) because Copilot and older
+// gpt-4o endpoints do not support the o-series-only max_completion_tokens param.
+const DEFAULT_MAX_TOKENS = 16384;
+
 /**
  * Builds OpenAI request params from a normalized request and streams the
  * normalized events.
@@ -180,7 +185,7 @@ export async function *streamOpenAi (client, { model, normalizedRequest, signal 
     const params = {
         model,
         messages: toOpenAiMessages(normalizedRequest),
-        max_tokens: normalizedRequest.max_tokens || 8192,
+        max_tokens: normalizedRequest.max_tokens || DEFAULT_MAX_TOKENS,
         stream: true
     };
 

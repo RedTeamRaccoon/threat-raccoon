@@ -2,6 +2,7 @@ import { expect } from 'chai';
 
 import {
     mapOpenAiStream,
+    streamOpenAi,
     toOpenAiMessages,
     toOpenAiTools
 } from '../../src/llm/providers/openaiTranslate.js';
@@ -147,6 +148,52 @@ describe('llm/providers/openaiTranslate.js', () => {
                 { type: 'message_delta', stop_reason: 'tool_use' },
                 { type: 'message_stop' }
             ]);
+        });
+    });
+
+    describe('streamOpenAi', () => {
+        it('defaults max_tokens to 16384 when the caller does not specify one', async () => {
+            let capturedParams;
+            const fakeClient = {
+                chat: {
+                    completions: {
+                        create (params) {
+                            capturedParams = params;
+                            return Promise.resolve(gen([]));
+                        }
+                    }
+                }
+            };
+
+            await collect(streamOpenAi(fakeClient, {
+                model: 'gpt-4o',
+                normalizedRequest: { messages: [] },
+                signal: undefined
+            }));
+
+            expect(capturedParams.max_tokens).to.equal(16384);
+        });
+
+        it('honours a caller-supplied max_tokens over the default', async () => {
+            let capturedParams;
+            const fakeClient = {
+                chat: {
+                    completions: {
+                        create (params) {
+                            capturedParams = params;
+                            return Promise.resolve(gen([]));
+                        }
+                    }
+                }
+            };
+
+            await collect(streamOpenAi(fakeClient, {
+                model: 'gpt-4o',
+                normalizedRequest: { messages: [], max_tokens: 4096 },
+                signal: undefined
+            }));
+
+            expect(capturedParams.max_tokens).to.equal(4096);
         });
     });
 });

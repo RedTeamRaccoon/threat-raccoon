@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 
-import { mapAnthropicStream } from '../../src/llm/providers/anthropicStream.js';
+import { mapAnthropicStream, streamAnthropic } from '../../src/llm/providers/anthropicStream.js';
 
 async function* gen (items) {
     for (const item of items) {
@@ -69,6 +69,48 @@ describe('llm/providers/anthropicStream.js', () => {
             expect(events).to.deep.equal([
                 { type: 'error', message: 'overloaded', error: { message: 'overloaded' } }
             ]);
+        });
+    });
+
+    describe('streamAnthropic', () => {
+        it('defaults max_tokens to 16384 when the caller does not specify one', async () => {
+            let capturedParams;
+            const fakeClient = {
+                messages: {
+                    stream (params) {
+                        capturedParams = params;
+                        return gen([{ type: 'message_stop' }]);
+                    }
+                }
+            };
+
+            await collect(streamAnthropic(fakeClient, {
+                model: 'claude-opus-4-8',
+                normalizedRequest: { messages: [] },
+                signal: undefined
+            }));
+
+            expect(capturedParams.max_tokens).to.equal(16384);
+        });
+
+        it('honours a caller-supplied max_tokens over the default', async () => {
+            let capturedParams;
+            const fakeClient = {
+                messages: {
+                    stream (params) {
+                        capturedParams = params;
+                        return gen([{ type: 'message_stop' }]);
+                    }
+                }
+            };
+
+            await collect(streamAnthropic(fakeClient, {
+                model: 'claude-opus-4-8',
+                normalizedRequest: { messages: [], max_tokens: 4096 },
+                signal: undefined
+            }));
+
+            expect(capturedParams.max_tokens).to.equal(4096);
         });
     });
 });

@@ -31,6 +31,7 @@ describe('components/Assistant/AssistantPanel.vue', () => {
             assistant: {
                 provider: null, model: null, messages: [], streamingText: '',
                 pendingToolCalls: [], runState: 'idle', error: null, sectionProgress: null,
+                maxSteps: 50, stepLimitReached: null,
                 ...(assistant || {})
             },
             threatmodel: threatmodel || { selectedDiagram: { id: 0, diagramType: 'STRIDE' } }
@@ -162,6 +163,68 @@ describe('components/Assistant/AssistantPanel.vue', () => {
             const payload = store.dispatch.mock.calls.find(([action]) => action === 'ASSISTANT_SEND')[1];
             expect(payload.systemContext).toBeUndefined();
             expect(payload.binding).not.toBe(fakeBinding);
+        });
+
+        it('includes maxSteps in the ASSISTANT_SEND payload (model mode)', () => {
+            const { wrapper, store } = mountPanel({
+                propsData: { mode: 'model' },
+                threatmodel: { data: { summary: { title: 't' } }, selectedDiagram: {} },
+                assistant: { maxSteps: 80 }
+            });
+            wrapper.vm.send('build it');
+            const payload = store.dispatch.mock.calls.find(([action]) => action === 'ASSISTANT_SEND')[1];
+            expect(payload.maxSteps).toBe(80);
+        });
+
+        it('includes maxSteps in the ASSISTANT_SEND payload (diagram mode)', () => {
+            const { wrapper, store } = mountPanel({ assistant: { maxSteps: 65 } });
+            wrapper.vm.send('add a process');
+            const payload = store.dispatch.mock.calls.find(([action]) => action === 'ASSISTANT_SEND')[1];
+            expect(payload.maxSteps).toBe(65);
+        });
+    });
+
+    describe('settings (gear) + maxSteps', () => {
+        it('hides the settings row until the gear is toggled', () => {
+            const { wrapper } = mountPanel();
+            expect(wrapper.find('.td-assistant-settings-row').exists()).toBe(false);
+            wrapper.vm.settingsOpen = true;
+            expect(wrapper.vm.settingsOpen).toBe(true);
+        });
+
+        it('initialises the local maxSteps mirror from the store', () => {
+            const { wrapper } = mountPanel({ assistant: { maxSteps: 120 } });
+            expect(wrapper.vm.maxSteps).toBe(120);
+        });
+
+        it('dispatches the clamped maxSteps on change and mirrors the clamped value back', () => {
+            const { wrapper, store } = mountPanel();
+            // simulate the store clamping the dispatched value
+            store.dispatch.mockImplementation((action, value) => {
+                if (action === 'ASSISTANT_SET_MAX_STEPS') {
+                    store.state.assistant.maxSteps = Math.min(200, Math.max(10, value));
+                }
+            });
+            wrapper.vm.maxSteps = 9999;
+            wrapper.vm.onMaxStepsChange();
+            expect(store.dispatch).toHaveBeenCalledWith('ASSISTANT_SET_MAX_STEPS', 9999);
+            // the input self-corrects to the clamped stored value
+            expect(wrapper.vm.maxSteps).toBe(200);
+        });
+    });
+
+    describe('step-limit notice', () => {
+        it('shows the limit row with the interpolated count when the cap was hit', () => {
+            const { wrapper } = mountPanel({ assistant: { stepLimitReached: 50 } });
+            const row = wrapper.find('.td-assistant-limit');
+            expect(row.exists()).toBe(true);
+            expect(row.text()).toContain('assistant.stepLimit');
+            expect(row.text()).toContain('"count":50');
+        });
+
+        it('shows no limit row when the cap was not hit', () => {
+            const { wrapper } = mountPanel();
+            expect(wrapper.find('.td-assistant-limit').exists()).toBe(false);
         });
     });
 

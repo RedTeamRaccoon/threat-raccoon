@@ -17,12 +17,29 @@ import {
     ASSISTANT_SET_RUN_STATE,
     ASSISTANT_SET_ERROR,
     ASSISTANT_SECTION_PROGRESS,
+    ASSISTANT_SET_MAX_STEPS,
+    ASSISTANT_SET_STEP_LIMIT,
     ASSISTANT_SEND,
     ASSISTANT_CLEAR
 } from '@/store/actions/assistant.js';
 import { runAgentLoop } from '@/service/assistant/agentLoop.js';
 
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
+
+// user-adjustable cap on agent-loop tool-use turns (one billable request each)
+export const MAX_STEPS_MIN = 10;
+export const MAX_STEPS_MAX = 200;
+export const MAX_STEPS_DEFAULT = 50;
+
+// Coerce an arbitrary input into a sane integer step budget. NaN / junk falls
+// back to the default; valid values are clamped to [MAX_STEPS_MIN, MAX_STEPS_MAX].
+export const clampMaxSteps = (value) => {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) {
+        return MAX_STEPS_DEFAULT;
+    }
+    return Math.min(MAX_STEPS_MAX, Math.max(MAX_STEPS_MIN, n));
+};
 
 // any conversation text block longer than this is a raw document section (user
 // prose never gets near it) — the only thing worth pruning once incorporated
@@ -55,6 +72,15 @@ export const pruneIngestedSection = (messages, { index, total, name }) => {
     return false;
 };
 
+// Human-readable notice listing the document sections that failed and were
+// skipped, shown via the panel's error row after the run completes.
+export const sectionFailureMessage = (indices) => {
+    const list = indices.join(', ');
+    return indices.length === 1
+        ? `Section ${list} failed - it was skipped.`
+        : `Sections ${list} failed - they were skipped.`;
+};
+
 const initialState = () => ({
     panelOpen: false,
     provider: null,
@@ -69,7 +95,13 @@ const initialState = () => ({
     abortRequested: false,
     // { current, total, name } while a chunked document section is being fed
     // to the agent; null otherwise
-    sectionProgress: null
+    sectionProgress: null,
+    // user-adjustable hard cap on agent-loop steps (billable requests). Durable.
+    maxSteps: MAX_STEPS_DEFAULT,
+    // when the step cap is reached the run stops VISIBLY: this holds the cap count
+    // so the panel can show a "step limit reached, send 'continue'" notice. Cleared
+    // on the next send.
+    stepLimitReached: null
 });
 
 const state = initialState();
@@ -82,6 +114,7 @@ const actions = {
     [ASSISTANT_ADD_ATTACHMENT]: ({ commit }, attachment) => commit(ASSISTANT_ADD_ATTACHMENT, attachment),
     [ASSISTANT_REMOVE_ATTACHMENT]: ({ commit }, index) => commit(ASSISTANT_REMOVE_ATTACHMENT, index),
     [ASSISTANT_CLEAR_ATTACHMENTS]: ({ commit }) => commit(ASSISTANT_CLEAR_ATTACHMENTS),
+    [ASSISTANT_SET_MAX_STEPS]: ({ commit }, value) => commit(ASSISTANT_SET_MAX_STEPS, value),
     [ASSISTANT_CLEAR]: ({ commit }) => commit(ASSISTANT_CLEAR),
 
     /**
@@ -89,12 +122,17 @@ const actions = {
      * canvas binding. The binding + abort signal are supplied by the panel component
      * (they hold non-serializable references that must not live in store state).
      */
-    [ASSISTANT_SEND]: async ({ commit, state }, { text, binding, signal, systemContext }) => {
+    [ASSISTANT_SEND]: async ({ commit, state }, { text, binding, signal, systemContext, maxSteps }) => {
         commit(ASSISTANT_ADD_MESSAGE, { role: 'user', content: [{ type: 'text', text }] });
         commit(ASSISTANT_STREAM_RESET);
         commit(ASSISTANT_TOOL_CLEAR);
         commit(ASSISTANT_SET_ERROR, null);
+        // a fresh send clears any prior step-limit notice (the user is resuming)
+        commit(ASSISTANT_SET_STEP_LIMIT, null);
         commit(ASSISTANT_SET_RUN_STATE, 'running');
+
+        // clamp the step budget defensively; fall back to the persisted setting
+        const stepBudget = clampMaxSteps(maxSteps != null ? maxSteps : state.maxSteps);
 
         const working = clone(state.messages);
         const attachments = clone(state.attachments);
@@ -112,6 +150,7 @@ const actions = {
             messages: working,
             systemContext,
             signal,
+            maxIterations: stepBudget,
             callbacks: {
                 onText: (delta) => commit(ASSISTANT_STREAM_TEXT, delta),
                 onToolUseStart: (call) => commit(ASSISTANT_TOOL_START, call),
@@ -120,16 +159,24 @@ const actions = {
                     commit(ASSISTANT_ADD_MESSAGE, message);
                     commit(ASSISTANT_STREAM_RESET);
                 },
-                onToolResults: (message) => commit(ASSISTANT_ADD_MESSAGE, message)
+                onToolResults: (message) => commit(ASSISTANT_ADD_MESSAGE, message),
+                // cap hit while the model still wanted to continue: surface it so
+                // the panel shows a notice; the conversation stays resumable
+                onLimit: ({ count }) => commit(ASSISTANT_SET_STEP_LIMIT, count)
             },
             ...extra
         });
+
+        // sections that threw a non-abort error (e.g. a transient proxy failure);
+        // recorded so the run can carry on to the next section and report which
+        // ones were skipped at the end
+        const sectionFailures = [];
 
         try {
             await runLoop({ attachments });
             commit(ASSISTANT_CLEAR_ATTACHMENTS);
             for (const section of pendingSections) {
-                if ((signal && signal.aborted) || state.error) {
+                if (signal && signal.aborted) {
                     break;
                 }
                 // the previous section is in the model now: drop its raw text
@@ -153,8 +200,25 @@ const actions = {
                     total: section.total,
                     name: section.name
                 });
-                // eslint-disable-next-line no-await-in-loop
-                await runLoop({});
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await runLoop({});
+                } catch (err) {
+                    // AbortError stops EVERYTHING immediately — re-throw to the
+                    // outer handler so no further sections run
+                    if (err && err.name === 'AbortError') {
+                        throw err;
+                    }
+                    // any other failure: record it, reset the error state, and
+                    // carry on to the next section instead of silently abandoning
+                    // sections k+1..N
+                    sectionFailures.push(section.index);
+                    commit(ASSISTANT_SET_ERROR, null);
+                }
+            }
+            // surface which sections were skipped (if any) once the run finishes
+            if (sectionFailures.length) {
+                commit(ASSISTANT_SET_ERROR, sectionFailureMessage(sectionFailures));
             }
         } catch (err) {
             if (!err || err.name !== 'AbortError') {
@@ -231,6 +295,12 @@ const mutations = {
     },
     [ASSISTANT_SECTION_PROGRESS]: (state, progress) => {
         state.sectionProgress = progress;
+    },
+    [ASSISTANT_SET_MAX_STEPS]: (state, value) => {
+        state.maxSteps = clampMaxSteps(value);
+    },
+    [ASSISTANT_SET_STEP_LIMIT]: (state, count) => {
+        state.stepLimitReached = count;
     },
     [ASSISTANT_CLEAR]: (state) => {
         Object.assign(state, initialState());
