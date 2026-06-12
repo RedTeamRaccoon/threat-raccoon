@@ -85,8 +85,22 @@ export async function *streamAnthropic (client, { model, normalizedRequest, sign
     // Opus 4.8: adaptive thinking is the only on-mode. Callers may override.
     params.thinking = normalizedRequest.thinking || { type: 'adaptive' };
 
-    const raw = client.messages.stream(params, { signal });
-    yield* mapAnthropicStream(raw);
+    try {
+        const raw = client.messages.stream(params, { signal });
+        yield* mapAnthropicStream(raw);
+    } catch (e) {
+        // Not every served model supports adaptive thinking (e.g. Haiku 4.5
+        // rejects it with a 400). Retry once without it rather than gating on
+        // a model list that goes stale as models come and go.
+        const message = (e && e.message) || '';
+        const thinkingUnsupported = e && e.status === 400 && message.includes('thinking');
+        if (!thinkingUnsupported || normalizedRequest.thinking) {
+            throw e;
+        }
+        delete params.thinking;
+        const raw = client.messages.stream(params, { signal });
+        yield* mapAnthropicStream(raw);
+    }
 }
 
 export default { mapAnthropicStream, streamAnthropic };

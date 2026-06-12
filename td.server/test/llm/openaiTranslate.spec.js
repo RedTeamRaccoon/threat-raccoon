@@ -195,5 +195,69 @@ describe('llm/providers/openaiTranslate.js', () => {
 
             expect(capturedParams.max_tokens).to.equal(4096);
         });
+
+        it('retries with max_completion_tokens when the model rejects max_tokens', async () => {
+            const calls = [];
+            const fakeClient = {
+                chat: {
+                    completions: {
+                        create (params) {
+                            calls.push({ ...params });
+                            if (calls.length === 1) {
+                                const err = new Error(
+                                    "Unsupported parameter: 'max_tokens' is not supported with this "
+                                    + "model. Use 'max_completion_tokens' instead.");
+                                err.status = 400;
+                                return Promise.reject(err);
+                            }
+                            return Promise.resolve(gen([]));
+                        }
+                    }
+                }
+            };
+
+            await collect(streamOpenAi(fakeClient, {
+                model: 'gpt-5.5',
+                normalizedRequest: { messages: [], max_tokens: 4096 },
+                signal: undefined
+            }));
+
+            // first attempt used max_tokens; retry swapped to max_completion_tokens
+            expect(calls).to.have.lengthOf(2);
+            expect(calls[0].max_tokens).to.equal(4096);
+            expect(calls[0].max_completion_tokens).to.equal(undefined);
+            expect(calls[1].max_tokens).to.equal(undefined);
+            expect(calls[1].max_completion_tokens).to.equal(4096);
+        });
+
+        it('does not retry a 400 that is unrelated to the token parameter', async () => {
+            let calls = 0;
+            const fakeClient = {
+                chat: {
+                    completions: {
+                        create () {
+                            calls += 1;
+                            const err = new Error('400 invalid model');
+                            err.status = 400;
+                            return Promise.reject(err);
+                        }
+                    }
+                }
+            };
+
+            let caught = null;
+            try {
+                await collect(streamOpenAi(fakeClient, {
+                    model: 'gpt-4o',
+                    normalizedRequest: { messages: [] },
+                    signal: undefined
+                }));
+            } catch (e) {
+                caught = e;
+            }
+
+            expect(caught).to.not.equal(null);
+            expect(calls).to.equal(1);
+        });
     });
 });

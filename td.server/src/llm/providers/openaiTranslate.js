@@ -194,7 +194,24 @@ export async function *streamOpenAi (client, { model, normalizedRequest, signal 
         params.tools = tools;
     }
 
-    const raw = await client.chat.completions.create(params, { signal });
+    let raw;
+    try {
+        raw = await client.chat.completions.create(params, { signal });
+    } catch (e) {
+        // Newer models (e.g. gpt-5.x) reject the classic max_tokens param and
+        // require max_completion_tokens; older gpt-4o / Copilot endpoints reject
+        // max_completion_tokens. Rather than gate on a model list that goes
+        // stale, retry once with the parameter swapped when the API tells us so.
+        const message = (e && e.message) || '';
+        const wantsCompletionTokens = e && e.status === 400
+            && message.includes('max_tokens') && message.includes('max_completion_tokens');
+        if (!wantsCompletionTokens) {
+            throw e;
+        }
+        params.max_completion_tokens = params.max_tokens;
+        delete params.max_tokens;
+        raw = await client.chat.completions.create(params, { signal });
+    }
     yield* mapOpenAiStream(raw);
 }
 

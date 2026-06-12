@@ -112,5 +112,65 @@ describe('llm/providers/anthropicStream.js', () => {
 
             expect(capturedParams.max_tokens).to.equal(4096);
         });
+
+        it('retries without thinking when the model rejects adaptive thinking', async () => {
+            const seen = [];
+            // eslint-disable-next-line require-yield
+            async function* throwing () {
+                const err = new Error('400 adaptive thinking is not supported on this model');
+                err.status = 400;
+                throw err;
+            }
+            const fakeClient = {
+                messages: {
+                    stream (params) {
+                        seen.push('thinking' in params ? params.thinking.type : 'none');
+                        return seen.length === 1 ? throwing() : gen([{ type: 'message_stop' }]);
+                    }
+                }
+            };
+
+            const events = await collect(streamAnthropic(fakeClient, {
+                model: 'claude-haiku-4-5',
+                normalizedRequest: { messages: [] },
+                signal: undefined
+            }));
+
+            // first attempt sent adaptive thinking, retry dropped it
+            expect(seen).to.deep.equal(['adaptive', 'none']);
+            expect(events).to.deep.equal([{ type: 'message_stop' }]);
+        });
+
+        it('does not retry a thinking rejection when the caller forced thinking', async () => {
+            // eslint-disable-next-line require-yield
+            async function* throwing () {
+                const err = new Error('400 thinking is not supported');
+                err.status = 400;
+                throw err;
+            }
+            let calls = 0;
+            const fakeClient = {
+                messages: {
+                    stream () {
+                        calls += 1;
+                        return throwing();
+                    }
+                }
+            };
+
+            let caught = null;
+            try {
+                await collect(streamAnthropic(fakeClient, {
+                    model: 'claude-haiku-4-5',
+                    normalizedRequest: { messages: [], thinking: { type: 'enabled' } },
+                    signal: undefined
+                }));
+            } catch (e) {
+                caught = e;
+            }
+
+            expect(caught).to.not.equal(null);
+            expect(calls).to.equal(1);
+        });
     });
 });
