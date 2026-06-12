@@ -84,7 +84,10 @@ import { extractPdfAttachments } from '@/service/assistant/pdfAttachments.js';
 import { extractDocxAttachments } from '@/service/assistant/docxAttachments.js';
 import { extractPptxAttachments } from '@/service/assistant/pptxAttachments.js';
 
-const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
+// Total attachment payload cap (base64 chars, ~1.33x raw bytes). Must stay
+// comfortably under the server's 25mb /api/llm/complete body limit once JSON
+// framing and the conversation itself ride on top.
+const MAX_TOTAL_BYTES = 15 * 1024 * 1024;
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
