@@ -21,12 +21,12 @@
             {{ $t('assistant.attachment.tooLarge') }}
         </div>
 
-        <div v-if="pdfWarning" class="td-assistant-warning">
-            {{ $t(`assistant.attachment.${pdfWarning}`, pdfWarningParams) }}
-        </div>
-
-        <div v-if="skippedWarningParams.count" class="td-assistant-warning">
-            {{ $t('assistant.attachment.imagesSkipped', skippedWarningParams) }}
+        <div
+            v-for="(notice, idx) in notices"
+            :key="idx"
+            class="td-assistant-warning"
+        >
+            {{ notice.file }}: {{ $t(`assistant.attachment.${notice.key}`, notice.params) }}
         </div>
 
         <!-- native textarea: bootstrap-vue's b-form-textarea under @vue/compat
@@ -110,16 +110,25 @@ export default {
             text: '',
             files: [],
             sizeWarning: false,
-            pdfWarning: '',
-            pdfWarningParams: {},
-            skippedWarningParams: {},
-            pdfBusy: false
+            // accumulating notices across a multi-file batch; each entry is
+            // { file, key, params } and a single file may add up to two (one of
+            // pdfTruncated|pdfChunked|pdfFailed, plus imagesSkipped)
+            notices: [],
+            // count of in-flight extractions: ALL must finish before the send
+            // guard unlocks, so a counter (not a boolean) is required when more
+            // than one file is read at once
+            extracting: 0
         };
     },
     computed: {
         ...mapState({
             attachments: (state) => state.assistant.attachments
         }),
+        // public name kept so the template/specs read it naturally; true while
+        // any extraction is still running
+        pdfBusy() {
+            return this.extracting > 0;
+        },
         // one chip per logical attachment: parts that share a `group` (the
         // page text + page images of one PDF) collapse into a single chip
         attachmentChips() {
@@ -158,6 +167,9 @@ export default {
             // listener throws synchronously
             const message = this.text.trim();
             this.text = '';
+            // the store clears the staged attachments after the run; drop their
+            // stale notices too so they do not linger over the next batch
+            this.notices = [];
             this.$emit('send', message);
         },
         totalBytes() {
@@ -197,114 +209,120 @@ export default {
                 reader.readAsText(file);
             }
         },
+        // record one structured-document notice (truncate/chunk) for `file`,
+        // tagging it with the file name so a multi-file batch can show whose
+        // notice is whose. A file contributes at most one of these.
+        addDocNotice(file, { truncated, textPages, imagePages, pageCount, sections }) {
+            const name = (file && file.name) || 'document';
+            if (truncated) {
+                this.notices.push({
+                    file: name,
+                    key: 'pdfTruncated',
+                    params: { textPages, imagePages, total: pageCount }
+                });
+            } else if (sections > 1) {
+                // the whole document fits, but it will be ingested in
+                // sections, one request after another
+                this.notices.push({ file: name, key: 'pdfChunked', params: { sections } });
+            }
+        },
+        addSkippedNotice(file, skippedImages) {
+            if (skippedImages > 0) {
+                // a second, small notice stacks below the chunk/truncate one
+                this.notices.push({
+                    file: (file && file.name) || 'document',
+                    key: 'imagesSkipped',
+                    params: { count: skippedImages }
+                });
+            }
+        },
+        addFailedNotice(file) {
+            this.notices.push({
+                file: (file && file.name) || 'document',
+                key: 'pdfFailed',
+                params: {}
+            });
+        },
         async readPdf(file) {
             // PDFs are binary: extract the text (CJK-capable) and render each
             // page as an image so the model can read embedded diagrams.
-            this.pdfWarning = '';
-            this.pdfWarningParams = {};
-            this.skippedWarningParams = {};
-            this.pdfBusy = true;
+            this.extracting += 1;
             try {
-                const { attachments, truncated, textPages, imagePages, pageCount, sections } =
-                    await extractPdfAttachments(file);
-                attachments.forEach((attachment) => this.addAttachment(attachment));
-                if (truncated) {
-                    this.pdfWarning = 'pdfTruncated';
-                    this.pdfWarningParams = { textPages, imagePages, total: pageCount };
-                } else if (sections > 1) {
-                    // the whole document fits, but it will be ingested in
-                    // sections, one request after another
-                    this.pdfWarning = 'pdfChunked';
-                    this.pdfWarningParams = { sections };
-                }
+                const result = await extractPdfAttachments(file);
+                result.attachments.forEach((attachment) => this.addAttachment(attachment));
+                this.addDocNotice(file, result);
             } catch (e) {
                 console.error('PDF extraction failed', e);
-                this.pdfWarning = 'pdfFailed';
+                this.addFailedNotice(file);
             } finally {
-                this.pdfBusy = false;
+                this.extracting -= 1;
             }
         },
         async readDocx(file) {
             // DOCX is OOXML (a ZIP): extract the text (headings/tables preserved)
             // and deliver every embedded figure to the vision model. Reuse the
-            // PDF busy flag, spinner, and chunk/truncate notices since their
-            // wording is generic.
-            this.pdfWarning = '';
-            this.pdfWarningParams = {};
-            this.skippedWarningParams = {};
-            this.pdfBusy = true;
+            // chunk/truncate/skip notices since their wording is generic.
+            this.extracting += 1;
             try {
-                const { attachments, truncated, textPages, imagePages, pageCount, sections, skippedImages } =
-                    await extractDocxAttachments(file);
-                attachments.forEach((attachment) => this.addAttachment(attachment));
-                if (truncated) {
-                    this.pdfWarning = 'pdfTruncated';
-                    this.pdfWarningParams = { textPages, imagePages, total: pageCount };
-                } else if (sections > 1) {
-                    this.pdfWarning = 'pdfChunked';
-                    this.pdfWarningParams = { sections };
-                }
-                if (skippedImages > 0) {
-                    // a second, small notice stacks below the chunk/truncate one
-                    this.skippedWarningParams = { count: skippedImages };
-                }
+                const result = await extractDocxAttachments(file);
+                result.attachments.forEach((attachment) => this.addAttachment(attachment));
+                this.addDocNotice(file, result);
+                this.addSkippedNotice(file, result.skippedImages);
             } catch (e) {
                 console.error('DOCX extraction failed', e);
-                this.pdfWarning = 'pdfFailed';
+                this.addFailedNotice(file);
             } finally {
-                this.pdfBusy = false;
+                this.extracting -= 1;
             }
         },
         async readPptx(file) {
             // PPTX is OOXML (a ZIP): extract each slide's text (title/tables
             // preserved) and deliver every embedded figure to the vision model.
-            // Reuse the PDF busy flag, spinner, and chunk/truncate/skip notices
-            // since their wording is generic.
-            this.pdfWarning = '';
-            this.pdfWarningParams = {};
-            this.skippedWarningParams = {};
-            this.pdfBusy = true;
+            // Reuse the chunk/truncate/skip notices since their wording is generic.
+            this.extracting += 1;
             try {
-                const { attachments, truncated, textPages, imagePages, pageCount, sections, skippedImages } =
-                    await extractPptxAttachments(file);
-                attachments.forEach((attachment) => this.addAttachment(attachment));
-                if (truncated) {
-                    this.pdfWarning = 'pdfTruncated';
-                    this.pdfWarningParams = { textPages, imagePages, total: pageCount };
-                } else if (sections > 1) {
-                    this.pdfWarning = 'pdfChunked';
-                    this.pdfWarningParams = { sections };
-                }
-                if (skippedImages > 0) {
-                    // a second, small notice stacks below the chunk/truncate one
-                    this.skippedWarningParams = { count: skippedImages };
-                }
+                const result = await extractPptxAttachments(file);
+                result.attachments.forEach((attachment) => this.addAttachment(attachment));
+                this.addDocNotice(file, result);
+                this.addSkippedNotice(file, result.skippedImages);
             } catch (e) {
                 console.error('PPTX extraction failed', e);
-                this.pdfWarning = 'pdfFailed';
+                this.addFailedNotice(file);
             } finally {
-                this.pdfBusy = false;
+                this.extracting -= 1;
             }
         },
-        onFilesSelected(files) {
-            (files || []).forEach((file) => this.readFile(file));
+        async onFilesSelected(files) {
+            // a fresh batch: drop the previous batch's notices, then process the
+            // files SEQUENTIALLY so several large canvas-heavy PDFs do not spike
+            // memory and attachment/figure order stays deterministic
+            this.notices = [];
+            for (const file of (files || [])) {
+                await this.readFile(file);
+            }
             // reset the picker so the same file can be re-added later
             this.$nextTick(() => {
                 this.files = [];
             });
         },
-        onPaste(event) {
+        async onPaste(event) {
             const items = event.clipboardData && event.clipboardData.items;
             if (!items) {
                 return;
             }
+            // a fresh batch: same reset + sequential processing as the picker path
+            this.notices = [];
+            const pasted = [];
             for (let i = 0; i < items.length; i += 1) {
                 if (items[i].kind === 'file') {
                     const file = items[i].getAsFile();
                     if (file) {
-                        this.readFile(file);
+                        pasted.push(file);
                     }
                 }
+            }
+            for (const file of pasted) {
+                await this.readFile(file);
             }
         },
         removeChip(chip) {
@@ -313,9 +331,7 @@ export default {
             [...chip.indices].sort((a, b) => b - a).
                 forEach((idx) => this.$store.dispatch(assistantActions.removeAttachment, idx));
             this.sizeWarning = false;
-            this.pdfWarning = '';
-            this.pdfWarningParams = {};
-            this.skippedWarningParams = {};
+            this.notices = [];
         }
     }
 };

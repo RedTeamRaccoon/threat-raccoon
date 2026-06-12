@@ -61,7 +61,9 @@ describe('components/Assistant/AssistantComposer.vue', () => {
 
     it('does not send while a PDF is still being read', async () => {
         const { wrapper } = mountComposer();
-        await wrapper.setData({ text: 'go', pdfBusy: true });
+        // pdfBusy is now a computed over the in-flight extraction counter
+        await wrapper.setData({ text: 'go', extracting: 1 });
+        expect(wrapper.vm.pdfBusy).toBe(true);
         wrapper.vm.submit();
         expect(wrapper.emitted('send')).toBeUndefined();
     });
@@ -80,8 +82,9 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             });
             const { wrapper } = mountComposer();
             await wrapper.vm.readPdf(pdfFile);
-            expect(wrapper.vm.pdfWarning).toBe('pdfChunked');
-            expect(wrapper.vm.pdfWarningParams).toEqual({ sections: 3 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.pdf', key: 'pdfChunked', params: { sections: 3 } }
+            ]);
         });
 
         it('keeps the truncation notice when pages were dropped', async () => {
@@ -95,8 +98,9 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             });
             const { wrapper } = mountComposer();
             await wrapper.vm.readPdf(pdfFile);
-            expect(wrapper.vm.pdfWarning).toBe('pdfTruncated');
-            expect(wrapper.vm.pdfWarningParams).toEqual({ textPages: 80, imagePages: 20, total: 95 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.pdf', key: 'pdfTruncated', params: { textPages: 80, imagePages: 20, total: 95 } }
+            ]);
         });
 
         it('shows no notice for a short single-section doc', async () => {
@@ -110,7 +114,7 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             });
             const { wrapper } = mountComposer();
             await wrapper.vm.readPdf(pdfFile);
-            expect(wrapper.vm.pdfWarning).toBe('');
+            expect(wrapper.vm.notices).toEqual([]);
         });
     });
 
@@ -144,17 +148,19 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             extractDocxAttachments.mockResolvedValue(ok({ skippedImages: 2 }));
             const { wrapper } = mountComposer();
             await wrapper.vm.readDocx(docxFile);
-            expect(wrapper.vm.pdfWarning).toBe('');
-            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 2 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.docx', key: 'imagesSkipped', params: { count: 2 } }
+            ]);
         });
 
         it('stacks the chunked notice and the skipped notice together', async () => {
             extractDocxAttachments.mockResolvedValue(ok({ sections: 3, skippedImages: 1 }));
             const { wrapper } = mountComposer();
             await wrapper.vm.readDocx(docxFile);
-            expect(wrapper.vm.pdfWarning).toBe('pdfChunked');
-            expect(wrapper.vm.pdfWarningParams).toEqual({ sections: 3 });
-            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 1 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.docx', key: 'pdfChunked', params: { sections: 3 } },
+                { file: 'spec.docx', key: 'imagesSkipped', params: { count: 1 } }
+            ]);
         });
 
         it('shows the truncation notice for a truncated docx', async () => {
@@ -163,16 +169,16 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             );
             const { wrapper } = mountComposer();
             await wrapper.vm.readDocx(docxFile);
-            expect(wrapper.vm.pdfWarning).toBe('pdfTruncated');
-            expect(wrapper.vm.pdfWarningParams).toEqual({ textPages: 8, imagePages: 20, total: 40 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.docx', key: 'pdfTruncated', params: { textPages: 8, imagePages: 20, total: 40 } }
+            ]);
         });
 
         it('shows no notice for a short single-section docx with no skips', async () => {
             extractDocxAttachments.mockResolvedValue(ok());
             const { wrapper } = mountComposer();
             await wrapper.vm.readDocx(docxFile);
-            expect(wrapper.vm.pdfWarning).toBe('');
-            expect(wrapper.vm.skippedWarningParams).toEqual({});
+            expect(wrapper.vm.notices).toEqual([]);
         });
 
         it('falls through to the generic text reader for an old binary .doc', () => {
@@ -217,17 +223,19 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             extractPptxAttachments.mockResolvedValue(ok({ skippedImages: 2 }));
             const { wrapper } = mountComposer();
             await wrapper.vm.readPptx(pptxFile);
-            expect(wrapper.vm.pdfWarning).toBe('');
-            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 2 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.pptx', key: 'imagesSkipped', params: { count: 2 } }
+            ]);
         });
 
         it('stacks the chunked notice and the skipped notice together', async () => {
             extractPptxAttachments.mockResolvedValue(ok({ sections: 3, skippedImages: 1 }));
             const { wrapper } = mountComposer();
             await wrapper.vm.readPptx(pptxFile);
-            expect(wrapper.vm.pdfWarning).toBe('pdfChunked');
-            expect(wrapper.vm.pdfWarningParams).toEqual({ sections: 3 });
-            expect(wrapper.vm.skippedWarningParams).toEqual({ count: 1 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.pptx', key: 'pdfChunked', params: { sections: 3 } },
+                { file: 'spec.pptx', key: 'imagesSkipped', params: { count: 1 } }
+            ]);
         });
 
         it('shows the truncation notice for a truncated pptx', async () => {
@@ -236,16 +244,16 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             );
             const { wrapper } = mountComposer();
             await wrapper.vm.readPptx(pptxFile);
-            expect(wrapper.vm.pdfWarning).toBe('pdfTruncated');
-            expect(wrapper.vm.pdfWarningParams).toEqual({ textPages: 8, imagePages: 20, total: 40 });
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'spec.pptx', key: 'pdfTruncated', params: { textPages: 8, imagePages: 20, total: 40 } }
+            ]);
         });
 
         it('shows no notice for a short single-section pptx with no skips', async () => {
             extractPptxAttachments.mockResolvedValue(ok());
             const { wrapper } = mountComposer();
             await wrapper.vm.readPptx(pptxFile);
-            expect(wrapper.vm.pdfWarning).toBe('');
-            expect(wrapper.vm.skippedWarningParams).toEqual({});
+            expect(wrapper.vm.notices).toEqual([]);
         });
 
         it('falls through to the generic text reader for an old binary .ppt', () => {
@@ -289,6 +297,122 @@ describe('components/Assistant/AssistantComposer.vue', () => {
             wrapper.vm.removeChip(wrapper.vm.attachmentChips[1]);
             const removals = store.dispatch.mock.calls.filter(([action]) => action === 'ASSISTANT_REMOVE_ATTACHMENT');
             expect(removals.map(([, idx]) => idx)).toEqual([3, 2, 1]);
+        });
+    });
+
+    describe('multi-file batches', () => {
+        const ok = (over = {}) => ({
+            attachments: [],
+            truncated: false,
+            sections: 1,
+            textPages: 1,
+            imagePages: 0,
+            pageCount: 1,
+            ...over
+        });
+
+        // a promise whose resolution is controlled externally, so the test can
+        // hold an extraction open and observe state mid-flight
+        const deferred = () => {
+            let resolve;
+            const promise = new Promise((r) => { resolve = r; });
+            return { promise, resolve };
+        };
+
+        it('stays busy until ALL in-flight extractions finish', async () => {
+            const a = deferred();
+            const b = deferred();
+            extractPdfAttachments
+                .mockReturnValueOnce(a.promise)
+                .mockReturnValueOnce(b.promise);
+            const { wrapper } = mountComposer();
+
+            const p1 = wrapper.vm.readPdf({ name: 'a.pdf', type: 'application/pdf' });
+            const p2 = wrapper.vm.readPdf({ name: 'b.pdf', type: 'application/pdf' });
+            expect(wrapper.vm.pdfBusy).toBe(true);
+
+            // first finisher must NOT unlock the send guard while the second runs
+            a.resolve(ok());
+            await p1;
+            expect(wrapper.vm.pdfBusy).toBe(true);
+
+            b.resolve(ok());
+            await p2;
+            expect(wrapper.vm.pdfBusy).toBe(false);
+        });
+
+        it('shows both notices with file names when two files produce notices', async () => {
+            extractPdfAttachments
+                .mockResolvedValueOnce(ok({ truncated: true, textPages: 5, imagePages: 2, pageCount: 9 }))
+                .mockResolvedValueOnce(ok({ sections: 3 }));
+            const { wrapper } = mountComposer();
+
+            await wrapper.vm.onFilesSelected([
+                { name: 'A.pdf', type: 'application/pdf' },
+                { name: 'B.pdf', type: 'application/pdf' }
+            ]);
+
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'A.pdf', key: 'pdfTruncated', params: { textPages: 5, imagePages: 2, total: 9 } },
+                { file: 'B.pdf', key: 'pdfChunked', params: { sections: 3 } }
+            ]);
+            const rows = wrapper.findAll('.td-assistant-warning');
+            expect(rows.at(0).text()).toContain('A.pdf');
+            expect(rows.at(1).text()).toContain('B.pdf');
+        });
+
+        it("keeps file A's failure notice when file B succeeds", async () => {
+            extractPdfAttachments
+                .mockRejectedValueOnce(new Error('boom'))
+                .mockResolvedValueOnce(ok({ sections: 2 }));
+            const { wrapper } = mountComposer();
+
+            await wrapper.vm.onFilesSelected([
+                { name: 'A.pdf', type: 'application/pdf' },
+                { name: 'B.pdf', type: 'application/pdf' }
+            ]);
+
+            expect(wrapper.vm.notices).toEqual([
+                { file: 'A.pdf', key: 'pdfFailed', params: {} },
+                { file: 'B.pdf', key: 'pdfChunked', params: { sections: 2 } }
+            ]);
+        });
+
+        it('processes the batch sequentially in selection order', async () => {
+            const order = [];
+            const a = deferred();
+            const b = deferred();
+            extractPdfAttachments.mockImplementation((file) => {
+                order.push(file.name);
+                return file.name === 'A.pdf' ? a.promise : b.promise;
+            });
+            const { wrapper } = mountComposer();
+
+            const batch = wrapper.vm.onFilesSelected([
+                { name: 'A.pdf', type: 'application/pdf' },
+                { name: 'B.pdf', type: 'application/pdf' }
+            ]);
+
+            // only the first file's extractor has been invoked; the second waits
+            // for the first to settle
+            expect(order).toEqual(['A.pdf']);
+            a.resolve(ok());
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(order).toEqual(['A.pdf', 'B.pdf']);
+            b.resolve(ok());
+            await batch;
+        });
+
+        it('clears the previous batch notices when a new batch begins', async () => {
+            extractPdfAttachments.mockResolvedValue(ok({ sections: 3 }));
+            const { wrapper } = mountComposer();
+            await wrapper.vm.onFilesSelected([{ name: 'A.pdf', type: 'application/pdf' }]);
+            expect(wrapper.vm.notices).toHaveLength(1);
+
+            extractPdfAttachments.mockResolvedValue(ok());
+            await wrapper.vm.onFilesSelected([{ name: 'B.pdf', type: 'application/pdf' }]);
+            expect(wrapper.vm.notices).toEqual([]);
         });
     });
 });
